@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.IO;
 
 namespace EasyOcrNet;
 
@@ -14,13 +15,24 @@ public class EasyOcr : IDisposable
 {
     private readonly InferenceSession _detector;
     private readonly InferenceSession _recognizer;
-    // Character set taken from easyocr config for english_g2 (96 chars)
-    private const string Charset = "0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ €ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    private readonly string _charset;
 
-    public EasyOcr(string modelDirectory)
+    private static readonly HashSet<Charset> LatinCharsets = new()
+    {
+        Charset.af, Charset.az, Charset.bs, Charset.cs, Charset.cy, Charset.da,
+        Charset.de, Charset.en, Charset.es, Charset.et, Charset.fr, Charset.ga,
+        Charset.hr, Charset.hu, Charset.id, Charset.@is, Charset.it, Charset.ku,
+        Charset.la, Charset.lt, Charset.lv, Charset.mi, Charset.ms, Charset.mt,
+        Charset.nl, Charset.no, Charset.oc, Charset.pi, Charset.pl, Charset.pt,
+        Charset.ro, Charset.rs_latin, Charset.sk, Charset.sl, Charset.sq,
+        Charset.sv, Charset.sw, Charset.tl, Charset.tr, Charset.uz, Charset.vi
+    };
+
+    public EasyOcr(string modelDirectory, Charset charset = Charset.en)
     {
         _detector = new InferenceSession(Path.Combine(modelDirectory, "EasyOCRDetector.onnx"));
         _recognizer = new InferenceSession(Path.Combine(modelDirectory, "EasyOCRRecognizer.onnx"));
+        _charset = LoadCharset(modelDirectory, charset);
     }
 
     public IEnumerable<OcrResult> Read(SKBitmap image)
@@ -37,17 +49,13 @@ public class EasyOcr : IDisposable
             for (int x = 0; x < 800; x++)
             {
                 var c = resized.GetPixel(x, y);
-                int idx = y * 800 + x;
                 detTensor[0, 0, y, x] = ((float)c.Red - mean[0]) / std[0];
                 detTensor[0, 1, y, x] = ((float)c.Green - mean[1]) / std[1];
                 detTensor[0, 2, y, x] = ((float)c.Blue - mean[2]) / std[2];
             }
         }
-        // Run detector (output ignored in this simplified implementation)
-        _detector.Run(new[] { NamedOnnxValue.CreateFromTensor("image", detTensor) });
-
-        // Simple bounding box by scanning for non-white pixels
-        var bbox = GetContentBox(resized);
+        using var detResults = _detector.Run(new[] { NamedOnnxValue.CreateFromTensor("image", detTensor) });
+        var bbox = GetBboxFromDetector(detResults, resized.Width, resized.Height);
         var text = Recognize(resized, bbox);
         return new[] { new OcrResult(text, bbox) };
     }
@@ -120,12 +128,40 @@ public class EasyOcr : IDisposable
             if (maxIdx > 0 && maxIdx != prev)
             {
                 int charIndex = maxIdx - 1;
-                if (charIndex >= 0 && charIndex < Charset.Length)
-                    sb.Append(Charset[charIndex]);
+                if (charIndex >= 0 && charIndex < _charset.Length)
+                    sb.Append(_charset[charIndex]);
             }
             prev = maxIdx;
         }
         return sb.ToString();
+    }
+
+    private static string LoadCharset(string modelDirectory, Charset charset)
+    {
+        var rootDir = Path.GetFullPath(Path.Combine(modelDirectory, ".."));
+        var charDir = Path.Combine(rootDir, "character");
+        if (LatinCharsets.Contains(charset))
+        {
+            const string latinChars =
+                "0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ " +
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" +
+                "ÀÁÂÃÄÅÆÇÈÉÊËÍÎÑÒÓÔÕÖØÚÛÜÝÞß" +
+                "àáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿąęĮįıŁłŒœŠšųŽž\n";
+            return latinChars;
+        }
+
+        var file = Path.Combine(charDir, $"{charset}_char.txt");
+        if (!File.Exists(file))
+            file = Path.Combine(charDir, $"{charset}.txt");
+
+        // EasyOCR augments language-specific characters with digits, punctuation,
+        // spaces, and newlines. Reproduce that behaviour so output indices align
+        // with the original Python implementation.
+        var lang = File.ReadAllText(file, Encoding.UTF8)
+            .Replace("\r", string.Empty)
+            .Replace("\n", string.Empty);
+        const string symbols = "0123456789!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ \n";
+        return symbols + lang;
     }
 
     private SKRect GetContentBox(SKBitmap img)
@@ -148,6 +184,35 @@ public class EasyOcr : IDisposable
             }
         }
         return found ? new SKRect(minX, minY, maxX, maxY) : new SKRect(0, 0, img.Width, img.Height);
+    }
+
+    private SKRect GetBboxFromDetector(IDisposableReadOnlyCollection<DisposableNamedOnnxValue> detResults, int width, int height)
+    {
+        var tensor = detResults.First(v => v.Name == "results").AsTensor<float>();
+        int detH = tensor.Dimensions[1];
+        int detW = tensor.Dimensions[2];
+        float scaleX = (float)width / detW;
+        float scaleY = (float)height / detH;
+        int minX = detW, minY = detH, maxX = 0, maxY = 0;
+        bool found = false;
+        for (int y = 0; y < detH; y++)
+        {
+            for (int x = 0; x < detW; x++)
+            {
+                float p = tensor[0, y, x, 0];
+                if (p > 0.3f)
+                {
+                    found = true;
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+        return found
+            ? new SKRect(minX * scaleX, minY * scaleY, (maxX + 1) * scaleX, (maxY + 1) * scaleY)
+            : new SKRect(0, 0, width, height);
     }
 
     public void Dispose()
