@@ -2,3 +2,12 @@ bin/
 obj/
 **/bin/
 **/obj/
+# Local artifacts
+models/cpu/
+models/openvino/
+cache/
+runs/
+external/
+TestResults/
+# Bytecode
+__pycache__/
