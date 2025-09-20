@@ -9,7 +9,11 @@ from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Tuple
 
 from tools import onnx_infer
-from tools import openvino_infer
+
+try:  # pragma: no cover - optional OpenVINO dependency
+    from tools import openvino_infer
+except ModuleNotFoundError:  # pragma: no cover
+    openvino_infer = None
 
 LANGUAGE_HINTS: Dict[str, Sequence[str]] = {
     "chinese": ("ch_sim",),
@@ -90,6 +94,11 @@ def run_examples(
                 providers=providers,
             )
         else:
+            if openvino_infer is None:
+                raise ModuleNotFoundError(
+                    "OpenVINO runtime is not installed. Install the `openvino` package "
+                    "to use the OpenVINO inference helpers."
+                )
             text, providers_used = openvino_infer.run(
                 str(detection_path),
                 str(recognizer_path),
