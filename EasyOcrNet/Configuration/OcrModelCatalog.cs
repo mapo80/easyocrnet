@@ -37,6 +37,7 @@ internal static class OcrModelCatalog
             throw new FileNotFoundException($"Detection model not found at '{detectionPath}'.", detectionPath);
         }
 
+        var characterKey = metadata.CharacterSetKey;
         var recognizerPath = Path.Combine(options.ModelDirectory, metadata.RecognizerModelKey + recognizerExtension);
         if (!File.Exists(recognizerPath) && options.Backend == InferenceBackend.Onnx)
         {
@@ -44,6 +45,7 @@ internal static class OcrModelCatalog
             if (File.Exists(legacy))
             {
                 recognizerPath = legacy;
+                characterKey = "english_g2";
             }
         }
 
@@ -52,7 +54,7 @@ internal static class OcrModelCatalog
             throw new FileNotFoundException($"Recognizer model not found for language '{options.Language}'. Expected at '{recognizerPath}'.", recognizerPath);
         }
 
-        var characters = CharacterSetCatalog.GetCharacters(metadata.CharacterSetKey);
+        var characters = CharacterSetCatalog.GetCharacters(characterKey);
         return new OcrModelResources(detectionPath, recognizerPath, characters);
     }
 }

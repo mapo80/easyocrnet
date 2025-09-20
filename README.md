@@ -98,6 +98,9 @@ release. Use the helper scripts to hydrate the local cache with those artefacts:
 
 ```bash
 # Download the ONNX models published in the pre-v1.1.0 release.
+# This pulls the official TorchfreeEasyOCR detector plus the language recognisers
+# (including the latin_g2 Italian model) directly from GitHub so you do not have to
+# re-export them yourself.
 python tools/download_torchfree_models.py --output models/cpu
 
 # Convert the release weights into OpenVINO IR format.
@@ -124,6 +127,22 @@ Optional switches:
   `SimplifiedChinese`).
 - `--backend <onnx|openvino>` – choose the inference engine (defaults to `Onnx`).
 - `--device <name>` – specify the OpenVINO device (`CPU`, `GPU`, …); ignored for ONNX.
+
+### Italian generated ID samples
+
+The repository includes three synthetic Italian identity cards under
+`examples/generated_*.png`. Running the Python EasyOCR helper and the .NET extractor
+with `--language Italian` produces comparable transcripts saved alongside each image:
+
+| Image | EasyOCR (Python) | EasyOCR.NET (.dotnet.onnx) |
+| --- | --- | --- |
+| `generated_1.png` | [`examples/generated_1.easyocr.txt`](examples/generated_1.easyocr.txt) | [`examples/generated_1.dotnet.onnx.txt`](examples/generated_1.dotnet.onnx.txt) |
+| `generated_2.png` | [`examples/generated_2.easyocr.txt`](examples/generated_2.easyocr.txt) | [`examples/generated_2.dotnet.onnx.txt`](examples/generated_2.dotnet.onnx.txt) |
+| `generated_3.png` | [`examples/generated_3.easyocr.txt`](examples/generated_3.easyocr.txt) | [`examples/generated_3.dotnet.onnx.txt`](examples/generated_3.dotnet.onnx.txt) |
+
+Both pipelines now rely on the EasyOCR `latin_g2` recogniser shipped in the
+TorchfreeEasyOCR GitHub release to decode the Italian texts, keeping the character
+set consistent across the .NET and Python runs.
 
 ## TorchfreeEasyOCR single-image extraction
 

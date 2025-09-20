@@ -13,6 +13,7 @@ static OcrLanguage DeriveLanguage(string fileName)
     var name = Path.GetFileNameWithoutExtension(fileName).ToLowerInvariant();
     return name switch
     {
+        _ when name.StartsWith("generated", StringComparison.Ordinal) => OcrLanguage.Italian,
         "english" or "example" or "example2" or "example3" or "easyocr_framework" or "width_ths" => OcrLanguage.English,
         "french" => OcrLanguage.French,
         "japanese" => OcrLanguage.Japanese,
