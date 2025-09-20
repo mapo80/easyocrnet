@@ -144,6 +144,43 @@ Both pipelines now rely on the EasyOCR `latin_g2` recogniser shipped in the
 TorchfreeEasyOCR GitHub release to decode the Italian texts, keeping the character
 set consistent across the .NET and Python runs.
 
+## Confronto EasyOCR vs EasyOCR.NET sulle carte italiane generate
+
+Ho ripetuto l'estrazione del testo per `examples/generated_[1-3].png` utilizzando i
+seguenti comandi, assicurandomi di scaricare i modelli TorchfreeEasyOCR aggiornati
+per il backend ONNX:
+
+```bash
+python easyocr_extract.py
+dotnet run --project ExampleExtractor -- examples/generated_1.png --language Italian --models models/cpu --backend Onnx
+dotnet run --project ExampleExtractor -- examples/generated_2.png --language Italian --models models/cpu --backend Onnx
+dotnet run --project ExampleExtractor -- examples/generated_3.png --language Italian --models models/cpu --backend Onnx
+```
+
+I testi prodotti da EasyOCR (Python) e dalla libreria .NET mostrano divergenze
+significative: per esempio, EasyOCR introduce molte distorsioni ortografiche sulla
+prima tessera (``Colhou``, ``Scaotnza Dokurtio`` o ``Lavoro Autonoho``), mentre la
+versione .NET mantiene una struttura più vicina al documento originale pur
+introducendo rumore marginale nelle cifre seriali.
+
+Per quantificare le differenze ho calcolato alcune metriche classiche
+per l'OCR (Levenshtein, Character Error Rate e Word Error Rate) prendendo la
+trascrizione .NET come riferimento. Valori più alti indicano scostamenti maggiori.
+
+| Immagine | CER vs .NET | WER vs .NET | Distanza Levenshtein (caratteri) | Distanza Levenshtein normalizzata | Parole (.NET) | Distanza Levenshtein (parole) | Distanza parole normalizzata |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `generated_1.png` | 0.5954 | 0.9623 | 284 | 0.5954 | 53 | 51 | 0.8226 |
+| `generated_2.png` | 0.8447 | 1.1343 | 457 | 0.7504 | 67 | 76 | 0.9500 |
+| `generated_3.png` | 0.5475 | 0.8974 | 323 | 0.5475 | 78 | 70 | 0.8974 |
+| **Media** | **0.6625** | **0.9980** | — | **0.6311** | — | — | **0.8900** |
+
+I risultati mostrano che EasyOCR, pur riconoscendo la struttura generale, introduce
+errori in oltre il 60% dei caratteri medi e quasi il 100% delle parole rispetto
+all'output .NET. L'elevato WER evidenzia parole mancanti, divise o corrotte che
+rischiano di compromettere scenari in cui si richiede coerenza con il formato della
+carta d'identità. Conviene quindi affidare il flusso produttivo alla pipeline .NET,
+utilizzando EasyOCR solo come baseline o strumento diagnostico.
+
 ## TorchfreeEasyOCR single-image extraction
 
 The repository also ships with `torchfreeeasyocr_extract.py`, a Python helper that
@@ -237,3 +274,82 @@ Execute the suite with:
 ```bash
 dotnet test
 ```
+
+## Pacchetto NuGet con i modelli incorporati
+
+La libreria `EasyOcrNet` può essere distribuita come pacchetto NuGet che include
+tutti i modelli pubblicati nella release GitHub `v2025.09.19`. Il processo usa
+esclusivamente gli artefatti ufficiali, senza rigenerare i pesi.
+
+1. **Scarica i modelli dalla release**
+
+   ```bash
+   export GITHUB_TOKEN="<token Github>"
+   python tools/download_release_models.py --tag v2025.09.19 --output external/release-models
+   ```
+
+   Lo script recupera `easyocrnet-models-cpu-onnx.zip` e
+   `easyocrnet-models-openvino-ir.tar.gz`, li estrae in
+   `external/release-models/{onnx,openvino}` e verifica che i file siano presenti
+   prima di procedere con il packaging.
+
+2. **Genera il pacchetto NuGet**
+
+   ```bash
+   dotnet pack EasyOcrNet/EasyOcrNet.csproj -c Release -o artifacts
+   ```
+
+   Il pacchetto risultante `EasyOcrNet.1.0.0.nupkg` contiene le pipeline ONNX e
+   OpenVINO in `contentFiles/any/any/models/`. Mantieni gli artefatti locali fuori
+   dal repository (la cartella `artifacts/` è già esclusa dal versionamento).
+
+3. **Pubblica il pacchetto sulla release GitHub**
+
+   ```bash
+   curl -H "Authorization: token $GITHUB_TOKEN" \
+        -H "Content-Type: application/octet-stream" \
+        --data-binary @artifacts/EasyOcrNet.1.0.0.nupkg \
+        "https://uploads.github.com/repos/mapo80/easyocrnet/releases/248652542/assets?name=EasyOcrNet.1.0.0.nupkg"
+   ```
+
+   L’asset è ora disponibile pubblicamente all’indirizzo
+   <https://github.com/mapo80/easyocrnet/releases/download/v2025.09.19/EasyOcrNet.1.0.0.nupkg>.
+
+### Modelli copiati automaticamente nell’applicazione
+
+`EasyOcrNet.csproj` include tutti i `.onnx`, `.xml` e `.bin` della release come
+`contentFiles`, con copia automatica nella cartella di output del consumer. Alla
+prima compilazione i target MSBuild verificano che i modelli siano presenti in
+`external/release-models` e mostrano un errore guida se mancano gli artefatti
+ufficiali.
+
+### Progetto di smoke test
+
+`EasyOcrNet.NuGetSmokeTest` dimostra l’utilizzo del pacchetto NuGet senza
+download extra dei modelli:
+
+1. Scarica il pacchetto pubblicato e aggiungilo a un feed locale (nuovamente
+   senza committare gli artefatti):
+
+   ```bash
+   mkdir -p packages
+   curl -L -o packages/EasyOcrNet.1.0.0.nupkg \
+     https://github.com/mapo80/easyocrnet/releases/download/v2025.09.19/EasyOcrNet.1.0.0.nupkg
+   dotnet nuget add source $(pwd)/packages --name easyocrnet-local --store-password-in-clear-text
+   ```
+
+2. Ripristina e avvia l’applicazione di test:
+
+   ```bash
+   dotnet run --project EasyOcrNet.NuGetSmokeTest/EasyOcrNet.NuGetSmokeTest.csproj
+   ```
+
+   Il programma carica `examples/generated_1.png`, individua i modelli copiati dal
+   pacchetto (sotto `contentFiles/any/any/models/onnx`) e stampa le righe
+   riconosciute. Nessun download supplementare è necessario.
+
+3. *(Opzionale)* Rimuovi la sorgente locale quando non serve più:
+
+   ```bash
+   dotnet nuget remove source easyocrnet-local
+   ```

@@ -4,7 +4,52 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackageId>EasyOcrNet</PackageId>
+    <Title>EasyOCR.NET</Title>
+    <Description>.NET inference engine for the EasyOCR / TorchfreeEasyOCR models with embedded release weights.</Description>
+    <PackageTags>ocr;easyocr;onnx;openvino</PackageTags>
+    <Authors>mapo80</Authors>
+    <Company>mapo80</Company>
+    <RepositoryUrl>https://github.com/mapo80/easyocrnet</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/mapo80/easyocrnet</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <Target Name="EnsureReleaseModels" BeforeTargets="PrepareForBuild">
+    <ItemGroup>
+      <_OnnxReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\onnx\models\cpu\*.onnx" />
+      <_OpenVinoReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.xml" />
+      <_OpenVinoReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.bin" />
+    </ItemGroup>
+    <Error Condition="'@(_OnnxReleaseFiles)' == ''" Text="Missing ONNX release models. Run tools/download_release_models.py before packing." />
+    <Error Condition="'@(_OpenVinoReleaseFiles)' == ''" Text="Missing OpenVINO release models. Run tools/download_release_models.py before packing." />
+  </Target>
+
+  <ItemGroup>
+    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="$(MSBuildThisFileDirectory)..\external\release-models\onnx\models\cpu\*.onnx">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/any/any/models/onnx</PackagePath>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.xml">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/any/any/models/openvino</PackagePath>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.bin">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/any/any/models/openvino</PackagePath>
+      <PackageCopyToOutput>true</PackageCopyToOutput>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.22.1" />

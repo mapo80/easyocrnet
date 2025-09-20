@@ -8,6 +8,7 @@ models/openvino/
 cache/
 runs/
 external/
+artifacts/
 TestResults/
 # Bytecode
 __pycache__/
