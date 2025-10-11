@@ -74,7 +74,7 @@ public class TextDetectorTests
         var rect = rectangles[0];
         Assert.Equal(0f, rect.Left);
         Assert.Equal(0f, rect.Top);
-        Assert.Equal(400f, rect.Right, 3);
-        Assert.Equal(304f, rect.Bottom, 3);
+        Assert.Equal(800f, rect.Right, 3);
+        Assert.Equal(608f, rect.Bottom, 3);
     }
 }

@@ -57,8 +57,9 @@ public class TextRecognizerTests
             canvas.DrawRect(new SKRect(5, 5, 30, 20), paint);
         }
 
-        var result = recognizer.Recognize(bitmap, new SKRect(0, 0, bitmap.Width, bitmap.Height));
-        Assert.Equal("AB", result);
+        var (text, confidence) = recognizer.Recognize(bitmap, new SKRect(0, 0, bitmap.Width, bitmap.Height));
+        Assert.Equal("AB", text);
+        Assert.InRange(confidence, 0.99, 1.01);
     }
 
     [Fact]

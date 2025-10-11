@@ -11,9 +11,19 @@ internal sealed class SequenceDecoder
 
     public string Decode(ModelOutput output)
     {
+        return DecodeCore(output).Text;
+    }
+
+    public (string Text, double Confidence) DecodeWithConfidence(ModelOutput output)
+    {
+        return DecodeCore(output);
+    }
+
+    private (string Text, double Confidence) DecodeCore(ModelOutput output)
+    {
         if (output.Rank != 3)
         {
-            return string.Empty;
+            return (string.Empty, 0d);
         }
 
         int timeSteps = output[1];
@@ -23,19 +33,36 @@ internal sealed class SequenceDecoder
         var buffer = new char[timeSteps];
         int length = 0;
         int prev = 0;
+        double confidenceSum = 0d;
+        int confidenceCount = 0;
 
         for (int t = 0; t < timeSteps; t++)
         {
             int offset = t * classes;
             int maxIndex = 0;
-            float maxValue = float.NegativeInfinity;
+            float maxLogit = float.NegativeInfinity;
             for (int c = 0; c < classes; c++)
             {
                 float value = data[offset + c];
-                if (value > maxValue)
+                if (value > maxLogit)
                 {
-                    maxValue = value;
+                    maxLogit = value;
                     maxIndex = c;
+                }
+            }
+
+            double probability = 0d;
+            if (!float.IsNegativeInfinity(maxLogit))
+            {
+                double sumExp = 0d;
+                for (int c = 0; c < classes; c++)
+                {
+                    sumExp += Math.Exp(data[offset + c] - maxLogit);
+                }
+
+                if (sumExp > 0d)
+                {
+                    probability = 1d / sumExp;
                 }
             }
 
@@ -45,12 +72,16 @@ internal sealed class SequenceDecoder
                 if ((uint)characterIndex < (uint)_characters.Length)
                 {
                     buffer[length++] = _characters[characterIndex];
+                    confidenceSum += probability;
+                    confidenceCount++;
                 }
             }
 
             prev = maxIndex;
         }
 
-        return length == 0 ? string.Empty : new string(buffer, 0, length);
+        var text = length == 0 ? string.Empty : new string(buffer, 0, length);
+        var confidence = confidenceCount > 0 ? confidenceSum / confidenceCount : 0d;
+        return (text, confidence);
     }
 }

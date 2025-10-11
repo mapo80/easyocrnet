@@ -69,10 +69,10 @@ public sealed class EasyOcr : IDisposable
         {
             var rect = detections[i];
             var runWatch = Stopwatch.StartNew();
-            var text = _recognizer.Recognize(image, rect);
+            var (text, confidence) = _recognizer.Recognize(image, rect);
             runWatch.Stop();
             recognitionDurations[i] = runWatch.Elapsed.TotalMilliseconds;
-            results.Add(new OcrResult(text, rect));
+            results.Add(new OcrResult(text, rect, confidence));
         }
         recognitionWatch.Stop();
         overallWatch.Stop();

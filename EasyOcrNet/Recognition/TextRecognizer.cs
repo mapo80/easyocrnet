@@ -14,7 +14,7 @@ internal sealed class TextRecognizer
         _decoder = new SequenceDecoder(characters);
     }
 
-    public string Recognize(SKBitmap image, SKRect region)
+    public (string Text, double Confidence) Recognize(SKBitmap image, SKRect region)
     {
         if (image is null)
         {
@@ -23,6 +23,6 @@ internal sealed class TextRecognizer
 
         DenseTensor<float> input = RecognitionInputBuilder.Build(image, region);
         ModelOutput output = _backend.RunRecognizer(input);
-        return _decoder.Decode(output);
+        return _decoder.DecodeWithConfidence(output);
     }
 }
