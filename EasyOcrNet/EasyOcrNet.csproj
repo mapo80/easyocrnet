@@ -18,7 +18,7 @@
     <NoWarn>$(NoWarn);NU1903</NoWarn>
   </PropertyGroup>
 
-  <Target Name="EnsureReleaseModels" BeforeTargets="PrepareForBuild">
+  <Target Name="EnsureReleaseModels" BeforeTargets="PrepareForBuild" Condition="'$(SkipEnsureReleaseModels)' != 'true'">
     <ItemGroup>
       <_OnnxReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\onnx\models\cpu\*.onnx" />
       <_OpenVinoReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.xml" />

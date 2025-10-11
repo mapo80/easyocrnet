@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
+    <SkipEnsureReleaseModels>true</SkipEnsureReleaseModels>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -30,7 +31,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\EasyOcrNet\EasyOcrNet.csproj" />
+    <ProjectReference Include="..\EasyOcrNet\EasyOcrNet.csproj">
+      <Properties>SkipEnsureReleaseModels=true</Properties>
+    </ProjectReference>
   </ItemGroup>
 
 </Project>
