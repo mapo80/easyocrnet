@@ -1,6 +1,8 @@
+﻿using System;
+using System.Collections.Generic;
 using EasyOcrNet.Configuration;
+using EasyOcrNet.ImageProcessing;
 using SkiaSharp;
-using System.Buffers;
 
 namespace EasyOcrNet.Detection;
 
@@ -16,111 +18,173 @@ internal static class DetectionPostProcessor
         int detH = output[1];
         int detW = output[2];
         int channels = output[3];
+        if (detH <= 0 || detW <= 0 || channels <= 0)
+        {
+            return new List<SKRect>();
+        }
+
         var data = output.Data;
+        var textMap = new float[detH, detW];
+        var linkMap = new float[detH, detW];
+        var combinedMask = new bool[detH, detW];
+
+        for (int y = 0; y < detH; y++)
+        {
+            for (int x = 0; x < detW; x++)
+            {
+                int index = (y * detW + x) * channels;
+                float textScore = data[index];
+                float linkScore = channels > 1 ? data[index + 1] : 0f;
+
+                textMap[y, x] = textScore;
+                linkMap[y, x] = linkScore;
+
+                bool textActive = textScore >= OcrConstants.DetectorLowTextThreshold;
+                bool linkActive = linkScore >= OcrConstants.DetectorTextLinkThreshold;
+
+                combinedMask[y, x] = textActive || linkActive;
+            }
+        }
+
+        var components = ConnectedComponentsAnalyzer.Analyze(combinedMask);
+        if (components.Count == 0)
+        {
+            return new List<SKRect>();
+        }
 
         float scaleX = width / (float)detW;
         float scaleY = height / (float)detH;
 
-        int totalCells = detH * detW;
-        var visited = new bool[totalCells];
-        var components = new List<SKRect>(Math.Max(4, totalCells / 32));
-        var queueBuffer = ArrayPool<int>.Shared.Rent(totalCells);
+        var results = new List<SKRect>(components.Count);
+        var labels = components.Labels;
 
-        var offsetsY = new[] { -1, -1, -1, 0, 0, 1, 1, 1 };
-        var offsetsX = new[] { -1, 0, 1, -1, 1, -1, 0, 1 };
-
-        try
+        foreach (var component in components.Stats)
         {
-            for (int index = 0; index < totalCells; index++)
+            if (component.Area < 10)
             {
-                if (visited[index])
+                continue;
+            }
+
+            if (GetMaximumScore(textMap, labels, component) < OcrConstants.DetectorTextScoreThreshold)
+            {
+                continue;
+            }
+
+            var mask = ExtractComponentMask(labels, component);
+            var dilated = DilateMask(mask, component);
+            var contour = GeometryUtils.ExtractContour(dilated);
+            if (contour.Count == 0)
+            {
+                continue;
+            }
+
+            var rect = GeometryUtils.MinAreaRect(contour);
+            var bounds = ConvertToImageSpace(rect, component, scaleX, scaleY, width, height);
+            if (bounds.Width > 0 && bounds.Height > 0)
+            {
+                results.Add(bounds);
+            }
+        }
+
+        return results;
+    }
+
+    private static float GetMaximumScore(float[,] textMap, int[,] labels, ComponentStats component)
+    {
+        float max = 0f;
+        int endY = component.Y + component.Height;
+        int endX = component.X + component.Width;
+
+        for (int y = component.Y; y < endY; y++)
+        {
+            for (int x = component.X; x < endX; x++)
+            {
+                if (labels[y, x] == component.Label)
                 {
-                    continue;
-                }
-
-                float scoreText = data[index * channels];
-                if (scoreText < OcrConstants.DetectorLowTextThreshold)
-                {
-                    continue;
-                }
-
-                visited[index] = true;
-
-                int head = 0;
-                int tail = 0;
-                queueBuffer[tail++] = index;
-
-                int minX = index % detW;
-                int maxX = minX;
-                int minY = index / detW;
-                int maxY = minY;
-                bool hasStrongText = scoreText >= OcrConstants.DetectorTextScoreThreshold;
-
-                while (head < tail)
-                {
-                    int current = queueBuffer[head++];
-                    int cy = current / detW;
-                    int cx = current - cy * detW;
-                    int currentIndex = current * channels;
-                    float currentText = data[currentIndex];
-                    float currentLink = channels > 1 ? data[currentIndex + 1] : 0f;
-
-                    if (currentText >= OcrConstants.DetectorTextScoreThreshold)
+                    float score = textMap[y, x];
+                    if (score > max)
                     {
-                        hasStrongText = true;
+                        max = score;
                     }
-
-                    if (currentLink >= OcrConstants.DetectorTextLinkThreshold)
-                    {
-                        hasStrongText = true;
-                    }
-
-                    if (cx < minX) minX = cx;
-                    if (cx > maxX) maxX = cx;
-                    if (cy < minY) minY = cy;
-                    if (cy > maxY) maxY = cy;
-
-                    for (int direction = 0; direction < offsetsY.Length; direction++)
-                    {
-                        int ny = cy + offsetsY[direction];
-                        int nx = cx + offsetsX[direction];
-                        if ((uint)ny >= (uint)detH || (uint)nx >= (uint)detW)
-                        {
-                            continue;
-                        }
-
-                        int neighbor = ny * detW + nx;
-                        if (visited[neighbor])
-                        {
-                            continue;
-                        }
-
-                        int neighborIndex = neighbor * channels;
-                        float neighborText = data[neighborIndex];
-                        float neighborLink = channels > 1 ? data[neighborIndex + 1] : 0f;
-                        if (neighborText >= OcrConstants.DetectorLowTextThreshold || neighborLink >= OcrConstants.DetectorTextLinkThreshold)
-                        {
-                            visited[neighbor] = true;
-                            queueBuffer[tail++] = neighbor;
-                        }
-                    }
-                }
-
-                if (hasStrongText)
-                {
-                    float left = MathF.Max(0f, minX * scaleX);
-                    float top = MathF.Max(0f, minY * scaleY);
-                    float right = MathF.Min(width, (maxX + 1) * scaleX);
-                    float bottom = MathF.Min(height, (maxY + 1) * scaleY);
-                    components.Add(new SKRect(left, top, right, bottom));
                 }
             }
         }
-        finally
+
+        return max;
+    }
+
+    private static bool[,] ExtractComponentMask(int[,] labels, ComponentStats component)
+    {
+        var mask = new bool[component.Height, component.Width];
+        int endY = component.Y + component.Height;
+        int endX = component.X + component.Width;
+
+        for (int y = component.Y; y < endY; y++)
         {
-            ArrayPool<int>.Shared.Return(queueBuffer);
+            for (int x = component.X; x < endX; x++)
+            {
+                if (labels[y, x] == component.Label)
+                {
+                    mask[y - component.Y, x - component.X] = true;
+                }
+            }
         }
 
-        return components;
+        return mask;
+    }
+
+    private static bool[,] DilateMask(bool[,] mask, ComponentStats component)
+    {
+        int longestSide = Math.Max(component.Width, component.Height);
+        int iterations = Math.Clamp(longestSide / 10, 1, 6);
+        int kernelSize = EnsureOdd(iterations * 2 + 1);
+
+        return MorphologyOps.Dilate(mask, kernelSize, kernelSize);
+    }
+
+    private static int EnsureOdd(int value)
+    {
+        if (value <= 0)
+        {
+            return 1;
+        }
+
+        return (value % 2 == 0) ? value + 1 : value;
+    }
+
+    private static SKRect ConvertToImageSpace(RotatedRect rect, ComponentStats component, float scaleX, float scaleY, int width, int height)
+    {
+        var corners = rect.GetCorners();
+
+        float minX = float.PositiveInfinity;
+        float maxX = float.NegativeInfinity;
+        float minY = float.PositiveInfinity;
+        float maxY = float.NegativeInfinity;
+
+        for (int i = 0; i < corners.Length; i++)
+        {
+            double offsetX = corners[i].X + component.X;
+            double offsetY = corners[i].Y + component.Y;
+
+            float scaledX = (float)(offsetX * scaleX);
+            float scaledY = (float)(offsetY * scaleY);
+
+            if (scaledX < minX) minX = scaledX;
+            if (scaledX > maxX) maxX = scaledX;
+            if (scaledY < minY) minY = scaledY;
+            if (scaledY > maxY) maxY = scaledY;
+        }
+
+        minX = Math.Clamp(minX, 0f, width);
+        maxX = Math.Clamp(maxX, 0f, width);
+        minY = Math.Clamp(minY, 0f, height);
+        maxY = Math.Clamp(maxY, 0f, height);
+
+        if (maxX <= minX || maxY <= minY)
+        {
+            return SKRect.Empty;
+        }
+
+        return new SKRect(minX, minY, maxX, maxY);
     }
 }
