@@ -10,5 +10,7 @@ runs/
 external/
 artifacts/
 TestResults/
+packages/custom/
+**/packages/custom/
 # Bytecode
 __pycache__/
