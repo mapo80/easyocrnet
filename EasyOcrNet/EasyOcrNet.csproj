@@ -14,6 +14,8 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/mapo80/easyocrnet</PackageProjectUrl>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);NU1903</NoWarn>
   </PropertyGroup>
 
   <Target Name="EnsureReleaseModels" BeforeTargets="PrepareForBuild">
