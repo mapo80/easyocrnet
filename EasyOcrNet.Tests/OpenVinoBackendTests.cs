@@ -10,6 +10,8 @@ namespace EasyOcrNet.Tests;
 
 public class OpenVinoBackendTests
 {
+    private static bool IsOpenVinoEnvironment => OperatingSystem.IsWindows() || OperatingSystem.IsLinux();
+
     [Fact]
     public void ThrowsWhenDetectorXmlMissing()
     {
@@ -79,6 +81,11 @@ public class OpenVinoBackendTests
     [Fact]
     public void UsesRuntimeToRunDetectorAndRecognizer()
     {
+        if (!IsOpenVinoEnvironment)
+        {
+            return; // Skipped on platforms without OpenVINO native runtime
+        }
+
         var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "openvino-test-" + Guid.NewGuid().ToString("N")));
         try
         {
@@ -126,6 +133,11 @@ public class OpenVinoBackendTests
     [Fact]
     public void DisposesRuntimeWhenCompilationFails()
     {
+        if (!IsOpenVinoEnvironment)
+        {
+            return; // Skipped on unsupported platforms
+        }
+
         var tempDir = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), "openvino-test-" + Guid.NewGuid().ToString("N")));
         try
         {
