@@ -1,84 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <PackageId>EasyOcrNet</PackageId>
-    <Title>EasyOCR.NET</Title>
-    <Description>.NET inference engine for the EasyOCR / TorchfreeEasyOCR models with embedded release weights.</Description>
-    <PackageTags>ocr;easyocr;onnx;openvino</PackageTags>
-    <Authors>mapo80</Authors>
-    <Company>mapo80</Company>
-    <RepositoryUrl>https://github.com/mapo80/easyocrnet</RepositoryUrl>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/mapo80/easyocrnet</PackageProjectUrl>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <NoWarn>$(NoWarn);NU1903</NoWarn>
   </PropertyGroup>
 
-  <Target Name="EnsureReleaseModels" BeforeTargets="PrepareForBuild" Condition="'$(SkipEnsureReleaseModels)' != 'true'">
-    <ItemGroup>
-      <_OnnxReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\onnx\models\cpu\*.onnx" />
-      <_OpenVinoReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.xml" />
-      <_OpenVinoReleaseFiles Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.bin" />
-    </ItemGroup>
-    <Error Condition="'@(_OnnxReleaseFiles)' == ''" Text="Missing ONNX release models. Run tools/download_release_models.py before packing." />
-    <Error Condition="'@(_OpenVinoReleaseFiles)' == ''" Text="Missing OpenVINO release models. Run tools/download_release_models.py before packing." />
-  </Target>
-
   <ItemGroup>
-    <None Include="$(MSBuildThisFileDirectory)..\README.md" Pack="true" PackagePath="/" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="$(MSBuildThisFileDirectory)..\external\release-models\onnx\models\cpu\*.onnx">
-      <Pack>true</Pack>
-      <PackagePath>contentFiles/any/any/models/onnx</PackagePath>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.xml">
-      <Pack>true</Pack>
-      <PackagePath>contentFiles/any/any/models/openvino</PackagePath>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="$(MSBuildThisFileDirectory)..\external\release-models\openvino\*.bin">
-      <Pack>true</Pack>
-      <PackagePath>contentFiles/any/any/models/openvino</PackagePath>
-      <PackageCopyToOutput>true</PackageCopyToOutput>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.23.1" />
-    <PackageReference Include="OpenVINO.CSharp.API" Version="2025.1.0.2" />
-    <PackageReference Include="OpenVINO.runtime.ubuntu.22-x86_64" Version="2024.4.0.1" />
-    <PackageReference Include="SkiaSharp" Version="3.119.1" />
-    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
-    <PackageReference Include="System.Numerics.Tensors" Version="9.0.9" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(OpenVINORuntime)' != ''">
-    <ContentWithTargetPath Include="$(OpenVINORuntime)\ubuntu.22-x86_64\native\*.so">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>runtimes/linux-x64/native/%(Filename)%(Extension)</TargetPath>
-    </ContentWithTargetPath>
-    <ContentWithTargetPath Include="$(OpenVINORuntime)\ubuntu.22-x86_64\native\*.so.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>runtimes/linux-x64/native/%(Filename)%(Extension)</TargetPath>
-    </ContentWithTargetPath>
-    <ContentWithTargetPath Include="$(OpenVINORuntime)\ubuntu.22-x86_64\native\*.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>runtimes/linux-x64/native/%(Filename)%(Extension)</TargetPath>
-    </ContentWithTargetPath>
-    <ContentWithTargetPath Include="$(OpenVINORuntime)\ubuntu.22-x86_64\native\install_openvino_dependencies.sh">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <TargetPath>runtimes/linux-x64/native/install_openvino_dependencies.sh</TargetPath>
-    </ContentWithTargetPath>
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.18.0" />
+    <PackageReference Include="OpenVINO.CSharp.API" Version="2025.0.0.1" />
+    <PackageReference Include="SkiaSharp" Version="2.88.3" />
+    <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="2.88.3" />
+    <PackageReference Include="System.Numerics.Tensors" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

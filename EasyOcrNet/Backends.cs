@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Numerics.Tensors;
-using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
 using OpenVinoSharp;
@@ -40,33 +39,13 @@ internal sealed class OnnxBackend : IOcrBackend
         if (!File.Exists(recognizerPath))
             throw new FileNotFoundException($"Recognizer model not found at '{recognizerPath}'", recognizerPath);
 
-        using var detectorOptions = CreateSessionOptions();
-        using var recognizerOptions = CreateSessionOptions();
-
-        _detector = new InferenceSession(detectorPath, detectorOptions);
-        _recognizer = new InferenceSession(recognizerPath, recognizerOptions);
+        _detector = new InferenceSession(detectorPath);
+        _recognizer = new InferenceSession(recognizerPath);
 
         _detectorInput = _detector.InputMetadata.Keys.Single();
         _recognizerInput = _recognizer.InputMetadata.Keys.Single();
 
         Provider = "ONNXRuntime";
-    }
-
-    private static SessionOptions CreateSessionOptions()
-    {
-        var options = new SessionOptions
-        {
-            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
-            ExecutionMode = ExecutionMode.ORT_PARALLEL,
-            IntraOpNumThreads = Math.Max(1, Environment.ProcessorCount),
-            InterOpNumThreads = Math.Max(1, Environment.ProcessorCount / 2)
-        };
-
-        options.EnableCpuMemArena = true;
-        options.LogSeverityLevel = OrtLoggingLevel.ORT_LOGGING_LEVEL_WARNING;
-        options.AddSessionConfigEntry("session.intra_op.allow_spinning", "1");
-
-        return options;
     }
 
     public ModelOutput RunDetector(DenseTensor<float> input)
@@ -90,27 +69,17 @@ internal sealed class OnnxBackend : IOcrBackend
     }
 }
 
-internal interface IOpenVinoRuntime : IDisposable
-{
-    IOpenVinoCompiledModel CompileModel(string xmlPath, string binPath, long[] inputShape, string device);
-}
-
-internal interface IOpenVinoCompiledModel : IDisposable
-{
-    ModelOutput Run(DenseTensor<float> tensor, long[] expectedShape);
-}
-
 internal sealed class OpenVinoBackend : IOcrBackend
 {
-    private readonly IOpenVinoRuntime _runtime;
-    private readonly IOpenVinoCompiledModel _detector;
-    private readonly IOpenVinoCompiledModel _recognizer;
+    private readonly Core _core;
+    private readonly CompiledModel _detector;
+    private readonly CompiledModel _recognizer;
     private readonly long[] _detectorInputDims = { 1, 3, 608, 800 };
     private readonly long[] _recognizerInputDims = { 1, 1, 64, 1000 };
 
     public string Provider { get; }
 
-    public OpenVinoBackend(string detectorXmlPath, string recognizerXmlPath, string device, Func<IOpenVinoRuntime>? runtimeFactory = null)
+    public OpenVinoBackend(string detectorXmlPath, string recognizerXmlPath, string device)
     {
         var detectorBin = Path.ChangeExtension(detectorXmlPath, ".bin");
         var recognizerBin = Path.ChangeExtension(recognizerXmlPath, ".bin");
@@ -124,147 +93,57 @@ internal sealed class OpenVinoBackend : IOcrBackend
         if (!File.Exists(recognizerBin))
             throw new FileNotFoundException($"Recognizer BIN not found at '{recognizerBin}'", recognizerBin);
 
-        EnsureNativeRuntimeLoaded();
-
-        _runtime = runtimeFactory?.Invoke() ?? CreateRuntime();
-        IOpenVinoCompiledModel? detector = null;
         try
         {
-            detector = _runtime.CompileModel(detectorXmlPath, detectorBin, _detectorInputDims, device);
-            _detector = detector;
-            _recognizer = _runtime.CompileModel(recognizerXmlPath, recognizerBin, _recognizerInputDims, device);
+            _core = new Core();
         }
-        catch
+        catch (DllNotFoundException ex)
         {
-            detector?.Dispose();
-            _runtime.Dispose();
-            throw;
+            throw new InvalidOperationException("OpenVINO native runtime could not be loaded. Ensure the OpenVINO runtime libraries are installed and available on PATH.", ex);
         }
+
+        _detector = CompileModel(detectorXmlPath, detectorBin, _detectorInputDims, device);
+        _recognizer = CompileModel(recognizerXmlPath, recognizerBin, _recognizerInputDims, device);
 
         Provider = $"OpenVINO:{device}";
     }
 
+    private CompiledModel CompileModel(string xmlPath, string binPath, long[] inputShape, string device)
+    {
+        using var model = _core.read_model(xmlPath, binPath);
+        using var shape = new OvShape(inputShape);
+        var partial = new PartialShape(shape);
+        model.reshape(partial);
+        return _core.compile_model(model, device);
+    }
+
     public ModelOutput RunDetector(DenseTensor<float> input)
     {
-        return _detector.Run(input, _detectorInputDims);
+        return Run(_detector, input, _detectorInputDims);
     }
 
     public ModelOutput RunRecognizer(DenseTensor<float> input)
     {
-        return _recognizer.Run(input, _recognizerInputDims);
+        return Run(_recognizer, input, _recognizerInputDims);
+    }
+
+    private static ModelOutput Run(CompiledModel model, DenseTensor<float> tensor, long[] shape)
+    {
+        using var request = model.create_infer_request();
+        using var ovShape = new OvShape(shape);
+        using var ovTensor = new OvTensor(ovShape, tensor.ToArray());
+        request.set_input_tensor(ovTensor);
+        request.infer();
+        using var outputTensor = request.get_output_tensor();
+        var outputData = outputTensor.get_data<float>((int)outputTensor.get_size());
+        var outputShape = outputTensor.get_shape().Select(dim => (int)dim).ToArray();
+        return new ModelOutput(outputData, outputShape);
     }
 
     public void Dispose()
     {
         _detector.Dispose();
         _recognizer.Dispose();
-        _runtime.Dispose();
-    }
-
-    private static void EnsureNativeRuntimeLoaded()
-    {
-        var baseDir = AppContext.BaseDirectory;
-        var nativeDir = Path.Combine(baseDir, "runtimes", "linux-x64", "native");
-        if (!Directory.Exists(nativeDir))
-        {
-            return;
-        }
-
-        var currentLd = Environment.GetEnvironmentVariable("LD_LIBRARY_PATH") ?? string.Empty;
-        if (!currentLd.Split(':', StringSplitOptions.RemoveEmptyEntries).Contains(nativeDir))
-        {
-            var updated = string.IsNullOrEmpty(currentLd) ? nativeDir : string.Concat(nativeDir, ":", currentLd);
-            Environment.SetEnvironmentVariable("LD_LIBRARY_PATH", updated);
-        }
-
-        static void LoadIfExists(string path)
-        {
-            if (!File.Exists(path))
-            {
-                return;
-            }
-
-            try
-            {
-                NativeLibrary.Load(path);
-            }
-            catch (DllNotFoundException ex)
-            {
-                throw new InvalidOperationException($"Failed to preload OpenVINO native library '{path}'. Ensure runtime dependencies are present in the native folder.", ex);
-            }
-        }
-
-        // Load the shared libraries explicitly to guarantee dependency resolution.
-        LoadIfExists(Path.Combine(nativeDir, "libtbb.so.12"));
-        LoadIfExists(Path.Combine(nativeDir, "libtbbmalloc.so"));
-        LoadIfExists(Path.Combine(nativeDir, "libopenvino.so"));
-        LoadIfExists(Path.Combine(nativeDir, "libopenvino_c.so"));
-    }
-
-    private static IOpenVinoRuntime CreateRuntime()
-    {
-        try
-        {
-            return new OpenVinoRuntime();
-        }
-        catch (DllNotFoundException ex)
-        {
-            throw new InvalidOperationException("OpenVINO native runtime could not be loaded. Ensure the OpenVINO runtime libraries are installed and available on PATH.", ex);
-        }
-    }
-
-    private sealed class OpenVinoRuntime : IOpenVinoRuntime
-    {
-        private readonly Core _core;
-
-        public OpenVinoRuntime()
-        {
-            _core = new Core();
-        }
-
-        public IOpenVinoCompiledModel CompileModel(string xmlPath, string binPath, long[] inputShape, string device)
-        {
-            using var model = _core.read_model(xmlPath, binPath);
-            using var shape = new OvShape(inputShape);
-            var partial = new PartialShape(shape);
-            model.reshape(partial);
-            var compiled = _core.compile_model(model, device);
-            return new OpenVinoCompiledModel(compiled, inputShape);
-        }
-
-        public void Dispose()
-        {
-            _core.Dispose();
-        }
-    }
-
-    private sealed class OpenVinoCompiledModel : IOpenVinoCompiledModel
-    {
-        private readonly CompiledModel _model;
-        private readonly long[] _inputShape;
-
-        public OpenVinoCompiledModel(CompiledModel model, long[] inputShape)
-        {
-            _model = model;
-            _inputShape = inputShape;
-        }
-
-        public ModelOutput Run(DenseTensor<float> tensor, long[] expectedShape)
-        {
-            using var request = _model.create_infer_request();
-            using var ovShape = new OvShape(_inputShape);
-            using var ovTensor = new OvTensor(ovShape, tensor.ToArray());
-            request.set_input_tensor(ovTensor);
-            request.infer();
-            using var outputTensor = request.get_output_tensor(0);
-            var outputData = outputTensor.get_data<float>((int)outputTensor.get_size());
-            var outputShape = outputTensor.get_shape().Select(dim => (int)dim).ToArray();
-            return new ModelOutput(outputData, outputShape);
-        }
-
-        public void Dispose()
-        {
-            _model.Dispose();
-        }
+        _core.Dispose();
     }
 }

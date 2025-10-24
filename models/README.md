@@ -3,8 +3,7 @@
 The heavy OCR models are not tracked in Git. Use the helper scripts to populate the
 local cache when needed:
 
-1. Download the TorchfreeEasyOCR ONNX models published on GitHub (detector plus all
-   language recognisers, including `latin_g2_rec.onnx` for the Italian pipeline):
+1. Download the TorchfreeEasyOCR ONNX models:
 
    ```bash
    python tools/download_torchfree_models.py
