@@ -295,9 +295,10 @@ public static class CraftUtils
     /// <summary>
     /// Group and merge text boxes based on position and size.
     /// Matches Python: group_text_box()
+    /// Polys format: List of float arrays where each array is [x0, y0, x1, y1, x2, y2, x3, y3]
     /// </summary>
-    public static (List<int[]> horizontalList, List<float[][]> freeList) GroupTextBox(
-        List<float[][]> polys,
+    public static (List<int[]> horizontalList, List<float[]> freeList) GroupTextBoxFlat(
+        List<float[]> polys,
         float slopeThreshold = 0.1f,
         float ycenterThreshold = 0.5f,
         float heightThreshold = 0.5f,
@@ -306,57 +307,53 @@ public static class CraftUtils
         bool sortOutput = true)
     {
         var horizontalList = new List<(int xMin, int xMax, int yMin, int yMax, float yCenter, float height)>();
-        var freeList = new List<float[][]>();
+        var freeList = new List<float[]>();
 
         // Classify boxes as horizontal or free-form
         foreach (var poly in polys)
         {
-            float slopeUp = (poly[3][1] - poly[1][1]) / Math.Max(10, poly[2][0] - poly[0][0]);
-            float slopeDown = (poly[5][1] - poly[7][1]) / Math.Max(10, poly[4][0] - poly[6][0]);
+            // poly format: [x0, y0, x1, y1, x2, y2, x3, y3]
+            float slopeUp = (poly[3] - poly[1]) / Math.Max(10, poly[2] - poly[0]);
+            float slopeDown = (poly[5] - poly[7]) / Math.Max(10, poly[4] - poly[6]);
 
             if (Math.Max(Math.Abs(slopeUp), Math.Abs(slopeDown)) < slopeThreshold)
             {
                 // Horizontal box
-                int xMax = (int)Math.Max(Math.Max(poly[0][0], poly[2][0]), Math.Max(poly[4][0], poly[6][0]));
-                int xMin = (int)Math.Min(Math.Min(poly[0][0], poly[2][0]), Math.Min(poly[4][0], poly[6][0]));
-                int yMax = (int)Math.Max(Math.Max(poly[1][1], poly[3][1]), Math.Max(poly[5][1], poly[7][1]));
-                int yMin = (int)Math.Min(Math.Min(poly[1][1], poly[3][1]), Math.Min(poly[5][1], poly[7][1]));
+                int xMax = (int)Math.Max(Math.Max(poly[0], poly[2]), Math.Max(poly[4], poly[6]));
+                int xMin = (int)Math.Min(Math.Min(poly[0], poly[2]), Math.Min(poly[4], poly[6]));
+                int yMax = (int)Math.Max(Math.Max(poly[1], poly[3]), Math.Max(poly[5], poly[7]));
+                int yMin = (int)Math.Min(Math.Min(poly[1], poly[3]), Math.Min(poly[5], poly[7]));
 
                 horizontalList.Add((xMin, xMax, yMin, yMax, 0.5f * (yMin + yMax), yMax - yMin));
             }
             else
             {
                 // Free-form box (add margin)
-                float height = Distance(
-                    new[] { poly[6][0], poly[6][1] },
-                    new[] { poly[0][0], poly[0][1] });
-                float width = Distance(
-                    new[] { poly[2][0], poly[2][1] },
-                    new[] { poly[0][0], poly[0][1] });
+                float dx1 = poly[6] - poly[0];
+                float dy1 = poly[7] - poly[1];
+                float height = (float)Math.Sqrt(dx1 * dx1 + dy1 * dy1);
+
+                float dx2 = poly[2] - poly[0];
+                float dy2 = poly[3] - poly[1];
+                float width = (float)Math.Sqrt(dx2 * dx2 + dy2 * dy2);
 
                 float margin = (float)(1.44 * addMargin * Math.Min(width, height));
 
-                float theta13 = Math.Abs((float)Math.Atan2(poly[1][1] - poly[5][1],
-                                         Math.Max(10, poly[0][0] - poly[4][0])));
-                float theta24 = Math.Abs((float)Math.Atan2(poly[3][1] - poly[7][1],
-                                         Math.Max(10, poly[2][0] - poly[6][0])));
+                float theta13 = Math.Abs((float)Math.Atan2(poly[1] - poly[5],
+                                         Math.Max(10, poly[0] - poly[4])));
+                float theta24 = Math.Abs((float)Math.Atan2(poly[3] - poly[7],
+                                         Math.Max(10, poly[2] - poly[6])));
 
-                float x1 = poly[0][0] - (float)Math.Cos(theta13) * margin;
-                float y1 = poly[1][1] - (float)Math.Sin(theta13) * margin;
-                float x2 = poly[2][0] + (float)Math.Cos(theta24) * margin;
-                float y2 = poly[3][1] - (float)Math.Sin(theta24) * margin;
-                float x3 = poly[4][0] + (float)Math.Cos(theta13) * margin;
-                float y3 = poly[5][1] + (float)Math.Sin(theta13) * margin;
-                float x4 = poly[6][0] - (float)Math.Cos(theta24) * margin;
-                float y4 = poly[7][1] + (float)Math.Sin(theta24) * margin;
+                float x1 = poly[0] - (float)Math.Cos(theta13) * margin;
+                float y1 = poly[1] - (float)Math.Sin(theta13) * margin;
+                float x2 = poly[2] + (float)Math.Cos(theta24) * margin;
+                float y2 = poly[3] - (float)Math.Sin(theta24) * margin;
+                float x3 = poly[4] + (float)Math.Cos(theta13) * margin;
+                float y3 = poly[5] + (float)Math.Sin(theta13) * margin;
+                float x4 = poly[6] - (float)Math.Cos(theta24) * margin;
+                float y4 = poly[7] + (float)Math.Sin(theta24) * margin;
 
-                freeList.Add(new[]
-                {
-                    new[] { x1, y1 },
-                    new[] { x2, y2 },
-                    new[] { x3, y3 },
-                    new[] { x4, y4 }
-                });
+                freeList.Add(new[] { x1, y1, x2, y2, x3, y3, x4, y4 });
             }
         }
 
