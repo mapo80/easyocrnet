@@ -359,21 +359,18 @@ Confronta i risultati tra C# ONNX e baseline Python, generando report diff.
 python onnx_compare.py
 ```
 
-### `ocr_process.py`
+### `ocr_process.py` - Implementazione Python di Riferimento
 
-Script unificato per processare immagini con OCR. Supporta generazione di file di testo, visualizzazioni con bounding box, e report JSON.
+Script Python autoconsistente che implementa l'intero pipeline OCR producendo risultati **identici al 100%** a torchfree-ocr.
 
-**Prerequisiti:**
+**Questa implementazione serve come riferimento completo per port in altri linguaggi.**
+
+#### Prerequisiti
 ```bash
-pip install opencv-python onnxruntime easyocr
+pip install opencv-python numpy onnxruntime pillow
 ```
 
-**Modalità disponibili:**
-- `text`: Genera file `.ocr.python.txt` con risultati OCR
-- `visualize`: Genera immagini `.ocr.bbox.png` con bounding box colorati
-- `all`: Genera entrambi (default)
-
-**Utilizzo base:**
+#### Utilizzo Base
 ```bash
 # Genera file di testo + visualizzazioni (default)
 python ocr_process.py
@@ -391,18 +388,7 @@ python ocr_process.py --json results.json
 python ocr_process.py --lang it --dataset /path/to/images
 ```
 
-**Opzioni:**
-- `--dataset`: Directory immagini (default: `dataset/base`)
-- `--lang`: Codice lingua (default: `en`)
-- `--mode`: `text` | `visualize` | `all`
-- `--json`: Salva report JSON
-- `--no-text`: Non disegna etichette sui bbox
-- `--thickness`: Spessore linee bbox (default: `2`)
-- `--scale`: Fattore di scala per immagini bbox (es: `2.0` = 2x, `3.0` = 3x)
-- `--overwrite`: Sovrascrive file esistenti
-- `--extensions`: Estensioni immagini (default: `.png,.jpg,.jpeg`)
-
-**Output generati:**
+#### Output Generati
 
 1. **File di testo** (`.ocr.python.txt`):
 ```
@@ -414,6 +400,626 @@ python ocr_process.py --lang it --dataset /path/to/images
 - 🟢 Verde: Alta confidenza (>= 0.7)
 - 🟡 Giallo: Media confidenza (0.4-0.7)
 - 🔴 Rosso: Bassa confidenza (< 0.4)
+
+---
+
+## 📋 Guida all'Implementazione OCR
+
+Questa sezione documenta l'implementazione completa dell'OCR pipeline per facilitare il port in altri linguaggi di programmazione (C#, Java, Rust, etc.).
+
+### ⚠️ Principi Fondamentali
+
+1. **L'ordine delle operazioni è CRITICO** - anche piccole variazioni producono risultati diversi
+2. **Precisione numerica** - usare float32 ovunque, evitare conversioni implicite
+3. **Interpolazione corretta** - cv2.INTER_LINEAR (bilinear) per tutti i resize
+4. **Two-pass recognition** - essenziale per risultati identici a torchfree
+
+### 🔄 Pipeline Completo
+
+```
+Immagine BGR → Detection → Text Grouping → Per-Crop Recognition → Results
+                  ↓              ↓                    ↓
+              CRAFT Model    group_text_box    Two-Pass Processing
+```
+
+---
+
+## 1️⃣ DETECTION - Fase 1: Preprocessing
+
+### Input
+- Immagine BGR da cv2.imread() o equivalente
+- Dimensioni originali: qualsiasi (H, W, 3)
+
+### Step 1.1: Conversione Grayscale
+```python
+# IMPORTANTE: Fare questo PRIMA dell'estrazione dei crop!
+img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
+# Shape: (H, W) - uint8, range [0, 255]
+```
+
+### Step 1.2: Resize con Aspect Ratio Preservato
+
+**ATTENZIONE**: Questo è diverso da un semplice resize!
+
+```python
+def resize_aspect_ratio(img, square_size=2560, interpolation=cv2.INTER_LINEAR, mag_ratio=1.0):
+    """
+    Resize mantenendo aspect ratio + padding a multipli di 32.
+
+    CRITICAL: Il resize deve:
+    1. Mantenere aspect ratio originale
+    2. Scalare in modo che max(height, width) <= square_size * mag_ratio
+    3. Paddare a multipli di 32 (necessario per CRAFT)
+    """
+    height, width = img.shape[:2]
+
+    # Calcola target size
+    target_size = mag_ratio * max(height, width)
+
+    if target_size > square_size:
+        target_size = square_size
+
+    # Calcola ratio mantenendo aspect ratio
+    ratio = target_size / max(height, width)
+
+    target_h = int(height * ratio)
+    target_w = int(width * ratio)
+
+    # Resize con INTER_LINEAR
+    img_resized = cv2.resize(img, (target_w, target_h), interpolation=interpolation)
+
+    # Padding a multipli di 32
+    target_h32 = target_h if target_h % 32 == 0 else (target_h // 32 + 1) * 32
+    target_w32 = target_w if target_w % 32 == 0 else (target_w // 32 + 1) * 32
+
+    # Pad con zeri (nero)
+    img_padded = np.zeros((target_h32, target_w32, 3), dtype=np.uint8)
+    img_padded[:target_h, :target_w, :] = img_resized
+
+    return img_padded, ratio, (target_h, target_w)
+```
+
+**Valori tipici**:
+- Per immagini normali: risultato ~(608, 800) o simile
+- ratio = dimensione_originale / dimensione_resized
+
+### Step 1.3: Normalizzazione ImageNet
+
+```python
+def normalizeMeanVariance(img, mean=(0.485, 0.456, 0.406), variance=(0.229, 0.224, 0.225)):
+    """
+    Normalizzazione con ImageNet mean/std.
+
+    CRITICAL: Ordine operazioni:
+    1. Converti a float32 e dividi per 255
+    2. Sottrai mean
+    3. Dividi per std
+    """
+    img = img.astype(np.float32) / 255.0
+
+    # Mean subtraction (per canale)
+    img[:, :, 0] = (img[:, :, 0] - mean[0]) / variance[0]  # B
+    img[:, :, 1] = (img[:, :, 1] - mean[1]) / variance[1]  # G
+    img[:, :, 2] = (img[:, :, 2] - mean[2]) / variance[2]  # R
+
+    return img
+```
+
+### Step 1.4: Conversione a Tensor
+
+```python
+# Transpose: (H, W, 3) → (3, H, W)
+img_tensor = img_normalized.transpose(2, 0, 1)
+
+# Add batch dimension: (3, H, W) → (1, 3, H, W)
+input_tensor = img_tensor[np.newaxis, :, :, :]
+
+# Assicurati che sia float32
+input_tensor = input_tensor.astype(np.float32)
+```
+
+**Output finale**: `(1, 3, H_padded, W_padded)` float32
+
+---
+
+## 1️⃣ DETECTION - Fase 2: Inferenza CRAFT
+
+### Modello
+- File: `detection.onnx` (83 MB)
+- Input shape: `[1, 3, H, W]` dove H, W sono multipli di 32
+- Output shape: `[1, 2, H/2, W/2]` - score maps
+
+### Inferenza
+
+```python
+import onnxruntime as ort
+
+session = ort.InferenceSession('models/cpu/detection.onnx',
+                               providers=['CPUExecutionProvider'])
+
+output = session.run(None, {session.get_inputs()[0].name: input_tensor})[0]
+# Shape: (1, 2, H/2, W/2)
+```
+
+**NOTA**: Output shape è la metà dell'input (stride=2)
+
+---
+
+## 1️⃣ DETECTION - Fase 3: Post-processing
+
+### Step 3.1: Estrazione Bounding Boxes
+
+```python
+def getDetBoxes(score_map, text_threshold=0.7, link_threshold=0.4,
+                low_text=0.4, poly=False):
+    """
+    Estrae bounding box da score map CRAFT.
+
+    PARAMETERS:
+    - text_threshold: soglia per region score (default: 0.7)
+    - link_threshold: soglia per affinity score (default: 0.4)
+    - low_text: soglia minima per region (default: 0.4)
+
+    RETURNS:
+    - boxes: lista di bbox [[x1,y1], [x2,y2], [x3,y3], [x4,y4]]
+    """
+    # Separa i due canali
+    textmap = score_map[:, :, 0]  # Region score
+    linkmap = score_map[:, :, 1]  # Affinity score
+
+    # Threshold binario
+    text_mask = textmap > low_text
+    link_mask = linkmap > link_threshold
+
+    # Connected components analysis
+    # Trova regioni connesse in text_mask
+    # ... (implementazione completa in craft_utils.py)
+
+    return boxes
+```
+
+### Step 3.2: Scaling Coordinate
+
+**CRITICAL**: Usa `ratio_net=2` perché lo score map è la metà dell'input!
+
+```python
+def adjustResultCoordinates(polys, ratio_w, ratio_h, ratio_net=2):
+    """
+    Scala coordinate da score map a immagine originale.
+
+    CRITICAL: ratio_net=2 perché score map è H/2 x W/2
+    """
+    if len(polys) == 0:
+        return polys
+
+    for poly in polys:
+        # Scala da score map (H/2, W/2) a immagine resized (H, W)
+        poly *= ratio_net
+
+        # Scala da immagine resized a immagine originale
+        poly[:, 0] /= ratio_w
+        poly[:, 1] /= ratio_h
+
+    return polys
+```
+
+**Esempio**:
+- Score map: (304, 400)
+- Immagine resized: (608, 800)
+- Immagine originale: (393, 568)
+- ratio_net = 2
+- ratio_w = 800 / 568
+- ratio_h = 608 / 393
+
+---
+
+## 1️⃣ DETECTION - Fase 4: Text Grouping
+
+**CRITICAL**: Questo step merge box adiacenti sulla stessa linea
+
+```python
+def group_text_box(polys, slope_ths=0.1, ycenter_ths=0.5,
+                   height_ths=0.5, width_ths=0.5, add_margin=0.1):
+    """
+    Raggruppa detection box adiacenti.
+
+    PARAMETERS (usare questi valori esatti):
+    - slope_ths: 0.1 - threshold per pendenza linea
+    - ycenter_ths: 0.5 - threshold per allineamento verticale
+    - height_ths: 0.5 - threshold per altezza simile
+    - width_ths: 0.5 - threshold per merge orizzontale
+    - add_margin: 0.1 - margine aggiuntivo (10%)
+
+    RETURNS:
+    - horizontal_list: lista di [x_min, x_max, y_min, y_max] per testo orizzontale
+    - free_list: lista di 4 punti per testo con orientamento libero
+    """
+    # ... (implementazione completa in craft_utils.py)
+```
+
+---
+
+## 2️⃣ RECOGNITION - Fase 1: Estrazione Crop
+
+### Step 1.1: Estrai Crop dall'Immagine Grayscale
+
+**CRITICAL**: Usa `img_gray` (l'immagine grayscale creata all'inizio), NON l'immagine BGR!
+
+```python
+# Per horizontal text
+for box in horizontal_list:
+    x_min, x_max, y_min, y_max = box[:4]
+
+    # Clip alle dimensioni immagine
+    x_min = int(np.clip(x_min, 0, orig_w))
+    x_max = int(np.clip(x_max, 0, orig_w))
+    y_min = int(np.clip(y_min, 0, orig_h))
+    y_max = int(np.clip(y_max, 0, orig_h))
+
+    # Estrai crop dalla GRAYSCALE
+    crop = img_gray[y_min:y_max, x_min:x_max]
+    # Shape: (h, w) - uint8 grayscale
+```
+
+---
+
+## 2️⃣ RECOGNITION - Fase 2: Preprocessing Per-Crop
+
+### Step 2.1: Calcola imgW Dinamico
+
+**CRITICAL**: Ogni crop ha il suo imgW basato sul suo aspect ratio!
+
+```python
+imgH = 64  # FISSO per tutti i crop
+
+h, w = crop.shape
+crop_ratio = w / float(h)
+
+# Calcola imgW per QUESTO crop
+imgW = math.ceil(crop_ratio) * imgH
+
+# Calcola resized_w
+resized_w = imgW if int(imgH * crop_ratio) > imgW else int(imgH * crop_ratio)
+```
+
+**Esempio**:
+- Crop: (8, 30) → ratio = 3.75
+- imgW = ceil(3.75) * 64 = 4 * 64 = 256
+- resized_w = int(64 * 3.75) = 240
+
+### Step 2.2: Resize
+
+**CRITICAL**: Usa cv2.INTER_LINEAR (NO PIL, NO BICUBIC, NO LANCZOS)
+
+```python
+resized = cv2.resize(crop, (resized_w, imgH), interpolation=cv2.INTER_LINEAR)
+# Shape: (64, resized_w) - uint8
+```
+
+### Step 2.3: Normalizzazione [-1, 1]
+
+```python
+# Converti a float32 e normalizza a [0, 1]
+img_array = resized.astype(np.float32) / 255.0
+
+# Scala a [-1, 1]
+img_array = (img_array - 0.5) / 0.5
+# Shape: (64, resized_w) - float32, range [-1, 1]
+```
+
+### Step 2.4: Padding con Last Column Repeat
+
+**CRITICAL**: Ripeti l'ultima colonna, NON paddare con zeri!
+
+```python
+# Crea array paddato
+padded = np.zeros((imgH, imgW), dtype=np.float32)
+
+# Copia immagine
+padded[:, :resized_w] = img_array
+
+# Ripeti ultima colonna per riempire padding
+if resized_w < imgW:
+    last_col = img_array[:, -1:]  # Shape: (64, 1)
+    padded[:, resized_w:] = np.tile(last_col, (1, imgW - resized_w))
+```
+
+### Step 2.5: Tensor Shape
+
+```python
+# Add batch + channel dimensions: (64, imgW) → (1, 1, 64, imgW)
+input_tensor = padded[None, None, :, :].astype(np.float32)
+```
+
+---
+
+## 2️⃣ RECOGNITION - Fase 3: Inferenza (First Pass)
+
+### Modello
+- File: `english_g2_rec.onnx` per inglese
+- Input: `[1, 1, 64, imgW]` - imgW varia per crop!
+- Output: `[1, T, 97]` dove T = sequenza temporale, 97 = num_classes
+
+### Inferenza
+
+```python
+rec_session = ort.InferenceSession('models/cpu/english_g2_rec.onnx',
+                                   providers=['CPUExecutionProvider'])
+
+output = rec_session.run(None, {rec_session.get_inputs()[0].name: input_tensor})[0]
+# Shape: (1, T, 97)
+```
+
+### Charset
+
+**CRITICAL**: Per inglese, charset HARDCODED (non da file):
+
+```python
+charset_en = '0123456789!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ €ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
+# Lunghezza: 96 caratteri
+# charset_list = ['[blank]'] + list(charset_en)  # 97 totali
+```
+
+---
+
+## 2️⃣ RECOGNITION - Fase 4: CTC Decoding
+
+**CRITICAL**: NO filtering/renormalization prima di argmax!
+
+```python
+def decode_recognition(output, charset):
+    """
+    CTC greedy decoding.
+
+    CRITICAL: Argmax DIRETTAMENTE sui logit!
+    """
+    # 1. Argmax diretto (NO softmax prima!)
+    preds_index = np.argmax(output, axis=2).reshape(-1)
+    # Shape: (T,)
+
+    # 2. Build charset list
+    charset_list = ['[blank]'] + list(charset)
+
+    # 3. Remove consecutive duplicates
+    indices_list = []
+    prev_idx = None
+    for idx in preds_index:
+        if idx != prev_idx:
+            indices_list.append(idx)
+            prev_idx = idx
+
+    # 4. Remove blanks (index 0)
+    indices_filtered = [idx for idx in indices_list if idx != 0]
+
+    # 5. Map to characters
+    text = ''.join([charset_list[idx] for idx in indices_filtered
+                    if idx < len(charset_list)])
+
+    return text
+```
+
+---
+
+## 2️⃣ RECOGNITION - Fase 5: Confidence Calculation
+
+```python
+def calculate_confidence(output, charset):
+    """
+    Calcola confidence score.
+
+    FORMULA: custom_mean(max_probs)
+    dove custom_mean(x) = prod(x)^(2/sqrt(len(x)))
+    """
+    # Apply softmax
+    preds_prob = softmax(output, axis=2)
+
+    # Get indices
+    preds_index = np.argmax(output, axis=2)[0]
+
+    # Collect max probs for non-blank, non-duplicate
+    max_probs_list = []
+    prev_idx = None
+
+    for i, idx in enumerate(preds_index):
+        if idx != 0 and idx != prev_idx:  # not blank and not duplicate
+            max_probs_list.append(preds_prob[0, i, idx])
+        prev_idx = idx
+
+    if len(max_probs_list) > 0:
+        # Custom mean formula
+        return np.prod(max_probs_list) ** (2.0 / np.sqrt(len(max_probs_list)))
+    else:
+        return 0.0
+```
+
+---
+
+## 2️⃣ RECOGNITION - Fase 6: Two-Pass Processing
+
+**CRITICAL**: Questo è essenziale per risultati identici!
+
+### Step 6.1: Identify Low Confidence Results
+
+```python
+contrast_ths = 0.1  # Threshold fisso
+
+low_conf_indices = [i for i, (_, _, conf, _) in enumerate(results)
+                    if conf < contrast_ths]
+```
+
+### Step 6.2: Adjust Contrast
+
+**CRITICAL**: Applica contrast adjustment al crop GIÀ RESIZED, non all'originale!
+
+```python
+def contrast_grey(img):
+    """Calcola contrast."""
+    high = np.percentile(img, 90)
+    low = np.percentile(img, 10)
+    return (high-low)/np.maximum(10, high+low), high, low
+
+
+def adjust_contrast_grey(img, target=0.4):
+    """
+    Adjust contrast se sotto target.
+
+    CRITICAL: Formula esatta (include +25 offset!)
+    """
+    contrast, high, low = contrast_grey(img)
+
+    if contrast < target:
+        img = img.astype(int)  # IMPORTANTE: int, non float32!
+        ratio = 200./np.maximum(10, high-low)
+        img = (img - low + 25)*ratio  # NOTA: +25 offset!
+        img = np.maximum(np.full(img.shape, 0),
+                        np.minimum(np.full(img.shape, 255), img)).astype(np.uint8)
+
+    return img
+```
+
+### Step 6.3: Second Pass Processing
+
+```python
+for idx in low_conf_indices:
+    bbox, _, _, crop_original = first_pass_results[idx]
+
+    # STEP 1: Resize crop originale (come first pass)
+    h, w = crop_original.shape
+    crop_ratio = w / float(h)
+    imgW = math.ceil(crop_ratio) * imgH
+    resized_w = imgW if int(imgH * crop_ratio) > imgW else int(imgH * crop_ratio)
+    crop_resized = cv2.resize(crop_original, (resized_w, imgH),
+                              interpolation=cv2.INTER_LINEAR)
+
+    # STEP 2: Applica contrast adjustment al crop RESIZED
+    crop_adjusted = adjust_contrast_grey(crop_resized, target=0.5)
+
+    # STEP 3: Continua preprocessing normale
+    img_array = crop_adjusted.astype(np.float32) / 255.0
+    img_array = (img_array - 0.5) / 0.5
+
+    # STEP 4-7: Padding, inference, decode, confidence
+    # ... (stesso processo del first pass)
+```
+
+### Step 6.4: Merge Results
+
+```python
+# Per ogni crop, scegli il risultato con confidenza maggiore
+for i in range(len(first_pass_results)):
+    if i in second_pass_results:
+        text1, conf1 = first_pass_results[i][1:3]
+        text2, conf2 = second_pass_results[i]
+
+        if conf1 > conf2:
+            final_results.append((bbox, text1, conf1))
+        else:
+            final_results.append((bbox, text2, conf2))
+    else:
+        final_results.append(first_pass_results[i][:3])
+```
+
+---
+
+## ⚠️ PUNTI CRITICI DI ATTENZIONE
+
+### 1. Ordine Operazioni
+- Grayscale conversion PRIMA di detection processing
+- Crop extraction da immagine grayscale
+- Contrast adjustment al crop RESIZED, non originale
+
+### 2. Tipi Numerici
+- SEMPRE usare float32 per tensori
+- uint8 per immagini fino a normalizzazione
+- int (non float32!) per contrast adjustment
+
+### 3. Interpolazione
+- cv2.INTER_LINEAR per TUTTI i resize
+- MAI usare PIL resize, BICUBIC, o LANCZOS
+
+### 4. Parametri Fissi
+```python
+# Detection
+text_threshold = 0.7
+link_threshold = 0.4
+low_text = 0.4
+
+# Text Grouping
+slope_ths = 0.1
+ycenter_ths = 0.5
+height_ths = 0.5
+width_ths = 0.5
+add_margin = 0.1
+
+# Recognition
+imgH = 64  # FISSO
+min_size = 20  # Filtra bbox troppo piccoli
+
+# Two-pass
+contrast_ths = 0.1
+adjust_contrast = 0.5
+```
+
+### 5. Coordinate Scaling
+- Detection: `ratio_net = 2` (CRITICO!)
+- Use `ratio_w` e `ratio_h` dal resize originale
+
+### 6. CTC Decoding
+- NO softmax/filtering prima di argmax
+- Remove duplicates DOPO argmax
+- Remove blanks DOPO remove duplicates
+
+### 7. Charset
+- Inglese: hardcoded string (96 chars)
+- Include spazio a posizione 42: `' '`
+- Include simboli speciali: `!"#$%&'()*+,-./:;<=>?@[\]^_`{|}~ €`
+
+---
+
+## 🧪 Verifica Implementazione
+
+### Test di Correttezza
+
+1. **Detection Count Test**:
+```python
+# Dataset: dataset/base/HAL.2015.page_42.pdf_125176.png
+# Expected: 10 detections
+assert len(results) == 10
+```
+
+2. **Recognition Exact Match Test**:
+```python
+expected_texts = [
+    "Oil price", "AW", "95i", "Oil price", "Brent",
+    "52 16", "Omt", "108.71", "Nlwal @aSmicc", "Henry Hub"
+]
+
+for i, (bbox, text, conf) in enumerate(results):
+    assert text == expected_texts[i], f"Mismatch at {i}: {text} != {expected_texts[i]}"
+```
+
+3. **Full Pipeline Test**:
+```bash
+# Confronta con torchfree-ocr
+python ocr_process.py --dataset dataset/base --mode text
+# Verifica che tutti i .ocr.python.txt siano identici a torchfree
+```
+
+---
+
+## 📦 File di Supporto
+
+- **[ocr_process.py](ocr_process.py)**: Implementazione completa di riferimento
+- **[craft_utils.py](craft_utils.py)**: Utilities CRAFT autoconsistenti
+- **[character/latin_char.txt](character/latin_char.txt)**: Charset latino (fallback)
+
+---
+
+## 🔗 Riferimenti
+
+- [CRAFT Paper](https://arxiv.org/abs/1904.01941) - Detection algorithm
+- [TorchfreeEasyOCR](https://github.com/SeldonHZ/TorchfreeEasyOCR) - Source dei modelli ONNX
+- [EasyOCR](https://github.com/JaidedAI/EasyOCR) - Progetto originale
 
 ## Modelli ONNX
 
