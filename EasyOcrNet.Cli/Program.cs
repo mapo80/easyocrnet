@@ -419,41 +419,17 @@ class Program
             // Create configuration with default thresholds
             var config = new OcrConfig(Language: language);
 
-            // Initialize detector
-            Console.WriteLine("Initializing detector...");
-            using var detector = new CraftDetector(detectorPath, config);
+            // Initialize OCR engine (handles detection + grouping + recognition)
+            Console.WriteLine("Initializing OCR engine...");
+            using var ocrEngine = new OcrEngine(detectorPath, recognizerPath, language, config);
 
-            // Initialize recognizer
-            Console.WriteLine("Initializing recognizer...");
-            using var recognizer = new CrnnRecognizer(recognizerPath, language, config);
-
-            // Run detection
-            Console.WriteLine("Running detection...");
+            // Run full OCR pipeline
+            Console.WriteLine("Running OCR pipeline (detection -> grouping -> recognition)...");
             var startTime = DateTime.Now;
-            var detections = await detector.DetectAsync(bitmap);
-            var detectTime = (DateTime.Now - startTime).TotalSeconds;
-            Console.WriteLine($"Detected {detections.Count} text regions in {detectTime:F2}s");
+            var ocrResults = await ocrEngine.ProcessImageAsync(bitmap);
+            var totalTime = (DateTime.Now - startTime).TotalSeconds;
 
-            // Run recognition on each detection
-            Console.WriteLine("Running recognition...");
-            var ocrResults = new List<OcrResult>();
-            startTime = DateTime.Now;
-
-            for (int i = 0; i < detections.Count; i++)
-            {
-                var detection = detections[i];
-                var recognition = await recognizer.RecognizeAsync(bitmap, detection);
-                ocrResults.Add(new OcrResult(detection.BoundingBox, recognition.Text, recognition.Confidence));
-
-                if ((i + 1) % 5 == 0 || i == detections.Count - 1)
-                {
-                    Console.WriteLine($"  Processed {i + 1}/{detections.Count}...");
-                }
-            }
-
-            var recognizeTime = (DateTime.Now - startTime).TotalSeconds;
-            var totalTime = detectTime + recognizeTime;
-            Console.WriteLine($"Recognition completed in {recognizeTime:F2}s");
+            Console.WriteLine($"Detected and recognized {ocrResults.Count} text regions in {totalTime:F2}s");
             Console.WriteLine($"Total time: {totalTime:F2}s");
             Console.WriteLine();
 

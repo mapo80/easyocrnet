@@ -304,7 +304,9 @@ public static class CraftUtils
         float heightThreshold = 0.5f,
         float widthThreshold = 1.0f,
         float addMargin = 0.05f,
-        bool sortOutput = true)
+        bool sortOutput = true,
+        int imageWidth = int.MaxValue,
+        int imageHeight = int.MaxValue)
     {
         var horizontalList = new List<(int xMin, int xMax, int yMin, int yMax, float yCenter, float height)>();
         var freeList = new List<float[]>();
@@ -364,7 +366,7 @@ public static class CraftUtils
 
         // Group boxes by line and merge
         var mergedList = MergeHorizontalBoxes(horizontalList, ycenterThreshold, heightThreshold,
-                                               widthThreshold, addMargin);
+                                               widthThreshold, addMargin, imageWidth, imageHeight);
 
         return (mergedList, freeList);
     }
@@ -582,7 +584,9 @@ public static class CraftUtils
         float ycenterThreshold,
         float heightThreshold,
         float widthThreshold,
-        float addMargin)
+        float addMargin,
+        int imageWidth,
+        int imageHeight)
     {
         var mergedList = new List<int[]>();
         if (horizontalList.Count == 0)
@@ -628,7 +632,14 @@ public static class CraftUtils
             {
                 var box = boxes[0];
                 int margin = (int)(addMargin * Math.Min(box.xMax - box.xMin, box.height));
-                mergedList.Add(new[] { box.xMin - margin, box.xMax + margin, box.yMin - margin, box.yMax + margin });
+
+                // Clamp coordinates to image bounds
+                int xMin = Math.Max(0, box.xMin - margin);
+                int xMax = Math.Min(imageWidth, box.xMax + margin);
+                int yMin = Math.Max(0, box.yMin - margin);
+                int yMax = Math.Min(imageHeight, box.yMax + margin);
+
+                mergedList.Add(new[] { xMin, xMax, yMin, yMax });
             }
             else
             {
@@ -681,7 +692,13 @@ public static class CraftUtils
                     int boxHeight = maxY - minY;
                     int margin = (int)(addMargin * Math.Min(boxWidth, boxHeight));
 
-                    mergedList.Add(new[] { minX - margin, maxX + margin, minY - margin, maxY + margin });
+                    // Clamp coordinates to image bounds
+                    int clampedXMin = Math.Max(0, minX - margin);
+                    int clampedXMax = Math.Min(imageWidth, maxX + margin);
+                    int clampedYMin = Math.Max(0, minY - margin);
+                    int clampedYMax = Math.Min(imageHeight, maxY + margin);
+
+                    mergedList.Add(new[] { clampedXMin, clampedXMax, clampedYMin, clampedYMax });
                 }
             }
         }

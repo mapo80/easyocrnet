@@ -204,63 +204,18 @@ public class CraftDetector : IDetector
         float ratioH = 1.0f / ratio;
         boxes = CraftUtils.AdjustResultCoordinates(boxes, ratioW, ratioH);
 
-        // Convert boxes to flat format for GroupTextBox
-        // From [[x1,y1], [x2,y2], [x3,y3], [x4,y4]] to [x1, y1, x2, y2, x3, y3, x4, y4]
-        var flatPolys = new List<float[]>();
-        foreach (var box in boxes)
-        {
-            var flat = new float[8];
-            flat[0] = box[0][0]; // x1
-            flat[1] = box[0][1]; // y1
-            flat[2] = box[1][0]; // x2
-            flat[3] = box[1][1]; // y2
-            flat[4] = box[2][0]; // x3
-            flat[5] = box[2][1]; // y3
-            flat[6] = box[3][0]; // x4
-            flat[7] = box[3][1]; // y4
-            flatPolys.Add(flat);
-        }
-
-        // Group text boxes (merge adjacent boxes on same line)
-        // This matches Python's run_ocr() implementation
-        var (horizontalList, freeList) = CraftUtils.GroupTextBoxFlat(
-            flatPolys,
-            slopeThreshold: _config.SlopeThreshold,
-            ycenterThreshold: _config.YCenterThreshold,
-            heightThreshold: _config.HeightThreshold,
-            widthThreshold: _config.WidthThreshold,
-            addMargin: _config.AddMargin,
-            sortOutput: true);
-
-        // Convert grouped boxes to DetectionResult format
+        // Convert RAW boxes to DetectionResult format
+        // NO GROUPING HERE - grouping will be done later in OcrEngine
         var detections = new List<DetectionResult>();
 
-        // Add horizontal boxes (merged rectangles)
-        foreach (var region in horizontalList)
+        foreach (var box in boxes)
         {
-            // region format: [xMin, xMax, yMin, yMax]
+            // box format: [[x0,y0], [x1,y1], [x2,y2], [x3,y3]]
             var boundingBox = new BoundingBox(
-                TopLeft: new Point2D(region[0], region[2]),
-                TopRight: new Point2D(region[1], region[2]),
-                BottomRight: new Point2D(region[1], region[3]),
-                BottomLeft: new Point2D(region[0], region[3])
-            );
-
-            detections.Add(new DetectionResult(boundingBox, Confidence: 1.0f));
-        }
-
-        // Add free-form boxes (rotated/non-horizontal)
-        foreach (var box in freeList)
-        {
-            if (box == null || box.Length < 8)
-                continue;
-
-            // box format: [x0, y0, x1, y1, x2, y2, x3, y3]
-            var boundingBox = new BoundingBox(
-                TopLeft: new Point2D((int)box[0], (int)box[1]),
-                TopRight: new Point2D((int)box[2], (int)box[3]),
-                BottomRight: new Point2D((int)box[4], (int)box[5]),
-                BottomLeft: new Point2D((int)box[6], (int)box[7])
+                TopLeft: new Point2D((int)box[0][0], (int)box[0][1]),
+                TopRight: new Point2D((int)box[1][0], (int)box[1][1]),
+                BottomRight: new Point2D((int)box[2][0], (int)box[2][1]),
+                BottomLeft: new Point2D((int)box[3][0], (int)box[3][1])
             );
 
             detections.Add(new DetectionResult(boundingBox, Confidence: 1.0f));

@@ -1,0 +1,34 @@
+(63,34) (957,34) (957,96) (63,96) | "Perché oggi, più di ieri; c'è bisogno di un'idea che | 0.6064
+(42,81) (1012,81) (1012,136) (42,136) | non si limiti a spiegare ciò che accade" disse Lucia, "ma | 0.7963
+(41,123) (967,123) (967,184) (41,184) | che sappia trasformare la città, là dove la gente sosta, lì | 0.6551
+(42,164) (970,164) (970,218) (42,218) | dove si decide il domani: Era tardi, ma nessuno voleva | 0.8105
+(41,208) (932,208) (932,268) (41,268) | andarsene: nell'aula dell'università, l'eco delle parole | 0.7501
+(37,248) (983,248) (983,312) (37,312) | rimbalzava sui muri; e perfino chi non parlava annuiva: | 0.7956
+(39,297) (852,297) (852,357) (39,357) | c'era un silenzio vigile; un'attesa che non pesava: | 0.8386
+(41,335) (825,335) (825,399) (41,399) | dev'essere l'ennesimo progetto calato dall'alto | 0.6065
+(847,345) (943,345) (943,389) (847,389) | bensì | 1.0000
+(44,384) (1024,384) (1024,441) (44,441) | una trama di gesti minuti: caffè condivisi all'alba, quartieri | 0.5875
+(42,430) (1016,430) (1016,486) (42,486) | che si riconoscono; piazze che non sono più solo passaggi. | 0.9010
+(41,471) (408,471) (408,521) (41,521) | Finché non avremo il | 0.9602
+(403,472) (1007,472) (1007,534) (403,534) | coraggio di ascoltare, non capiremo | 0.8337
+(43,518) (180,518) (180,562) (43,562) | davvero | 1.0000
+(303,514) (1015,514) (1015,574) (303,574) | le cose sembrino ferme; 0 perché, a tratti, | 0.7638
+(39,559) (312,559) (312,616) (39,616) | precipitino giù: | 0.9782
+(73,600) (947,600) (947,661) (73,661) | Andrea; che non era ďaccordo; replicò: "Sì, va bene | 0.5217
+(39,646) (273,646) (273,700) (39,700) | l'entusiasmo; | 0.6218
+(356,648) (984,648) (984,701) (356,701) | l'azione richiede metodo: misuriamo | 0.8111
+(42,692) (908,692) (908,744) (42,744) | ciò che funziona e ciò che no; altrimenti rischiamo | 0.8819
+(40,736) (974,736) (974,790) (40,790) | Ľillusione? Qualcuno sorrise: non era una resa, ma un' | 0.7071
+(37,781) (920,781) (920,838) (37,838) | passo. Si stesero appunti; sannotarono domande; si | 0.8301
+(45,835) (224,835) (224,871) (45,871) | corressero | 1.0000
+(222,817) (1005,817) (1005,879) (222,879) | previsioni; e, comê naturale; sorsero dubbi: "Ê | 0.9273
+(41,866) (945,866) (945,926) (41,926) | un'utopia?", ªNon sarà già tardi?." Eppure, a un certo | 0.6314
+(36,911) (577,911) (577,972) (36,972) | punto; si fece chiaro che; senza | 0.7871
+(664,916) (980,916) (980,968) (664,968) | 'intreccio di rigore | 0.9695
+(47,971) (67,971) (67,997) (47,997) | e | 0.9999
+(70,952) (969,952) (969,1015) (70,1015) | desiderio; non ci sarebbe stato futuro; e fu in quell'i - | 0.7066
+(163,1009) (201,1009) (201,1023) (163,1023) | t | 0.0772
+(858,292) (955,305) (948,348) (851,335) | "Non | 0.6758
+(180,524) (304,513) (306,561) (181,572) | perché | 1.0000
+(267,657) (356,647) (359,694) (270,705) | però | 0.9970
+(572,920) (668,912) (670,960) (574,968) | quell | 0.8151

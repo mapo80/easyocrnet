@@ -1,0 +1,9 @@
+Codice Fiscale:
+RSSMRA85M01H501Z
+E-mail:mario.rossi@example.it
+--------------------------------
+ORA  DESCRIZIONE  IMPORTO
+11:30  PRODOTTO A  12,00 €
+       PRODOTTO B   8,50 €
+--------------------------------
+12,00 €

@@ -1,0 +1,58 @@
+(153,153) (1542,153) (1542,256) (153,256) | Verbale narrativo sulla città possibile | 0.9984
+(156,289) (1868,289) (1868,353) (156,353) | "Perché oggi, più di ieri; c'è bisogno d'un'idea che non si accontenti di spiegare, | 0.5994
+(1878,290) (2289,290) (2289,345) (1878,345) | ma illumini ciò che | 0.7390
+(154,352) (360,352) (360,401) (154,401) | facciamo | 0.7695
+(367,367) (404,367) (404,391) (367,391) |  | 0.0000
+(412,351) (2191,351) (2191,404) (412,404) | là dove abitiano, lì dove crescono i bambini, dove il lavoro non è soltanto fatica ma | 0.6173
+(152,399) (2308,399) (2308,463) (152,463) | promessa. È questo, dice Lucia, il compito d'una comunità: rialzare ciò che cade, ricucire ciò che s'è | 0.7755
+(154,467) (1209,467) (1209,524) (154,524) | strappato; accogliere chi arriva con passo timido_ | 0.6904
+(1221,467) (2188,467) (2188,524) (1221,524) | E aggiunge: finché non avremo il coraggio di | 0.9926
+(152,519) (2257,519) (2257,588) (152,588) | guardare le piazze senza pregiudizi; non capiremo perché talvolta sembrino vuote e, altre volte, si | 0.7762
+(153,579) (1077,579) (1077,642) (153,642) | riempiano d'un brusio che placa i pensieri.~ | 0.8210
+(157,664) (480,664) (480,719) (157,719) | Andrea replica | 0.9962
+(534,663) (889,663) (889,720) (534,720) | pacato, ostinato | 0.7420
+(943,660) (2296,660) (2296,721) (943,721) | che lentusiasmo è un inizio, non una garanzia: <Misuriamo ciò | 0.6532
+(153,717) (2320,717) (2320,780) (153,780) | che funziona e ciò che no; altrimenti lillusione si traveste da progettov. Non è una doccia fredda, ma | 0.5942
+(153,774) (2093,774) (2093,842) (153,842) | una richiesta di rigore: tabelle che non soffochino; numeri che non dettino legge; verifiche | 0.7225
+(152,829) (2118,829) (2118,892) (152,892) | periodiche che non umilino il lavoro di chi prova e sbaglia. c'è chi annuisce, c'è chi sospira; | 0.7803
+(153,886) (1367,886) (1367,948) (153,948) | qualcuno, in fondo alla sala, annota con cura: "à è é ìò ù | 0.6119
+(1422,888) (2320,888) (2320,952) (1422,952) | ricordarsi di includere le parole giuste le | 0.9993
+(153,943) (921,943) (921,1009) (153,1009) | cadenze vere, I'italiano quotidiano"_ | 0.5952
+(157,1026) (946,1026) (946,1078) (157,1078) | Dal corridoio arriva lodore del caffè, | 0.8717
+(955,1029) (1420,1029) (1420,1078) (955,1078) | e le voci s'abbassano. | 0.7007
+(1431,1025) (2200,1025) (2200,1088) (1431,1088) | Una signora racconta di quando; da | 0.7776
+(153,1083) (2255,1083) (2255,1146) (153,1146) | ragazza, la città le pareva un labirinto e, insieme, una mappa sicura: <Si cresceva camminando; si | 0.6570
+(151,1140) (1646,1140) (1646,1206) (151,1206) | parlava con calma; si sbagliava, sì, ma s'imparava. Oggi sembra tutto | 0.8742
+(1722,1139) (2052,1139) (2052,1206) (1722,1206) | rapido, eppure | 0.5784
+(2130,1147) (2295,1147) (2295,1201) (2130,1201) | fragile: | 1.0000
+(153,1200) (898,1200) (898,1260) (153,1260) | basta un nulla e precipitiamo giùz . | 0.7614
+(153,1279) (2238,1279) (2238,1346) (153,1346) | Il dibattito s'allarga: scuole che aprono i cortili al quartiere; biblioteche che restano accese fino a | 0.7652
+(153,1334) (2087,1334) (2087,1398) (153,1398) | tardi; mercati dove il prezzo non schiaccia la dignità; strade dov'è possibile fermarsi, dirsi | 0.7986
+(157,1399) (412,1399) (412,1448) (157,1448) | "buonasera" | 0.9682
+(441,1394) (2209,1394) (2209,1455) (441,1455) | riconoscersi. <Non dev'essere retorica;> ammonisce Lucia, <ma pratica: panchine | 0.6920
+(153,1449) (1983,1449) (1983,1511) (153,1511) | all'ombra, fontane che non sprechino; marciapiedi senza ostacoli; autobus puntuali; e | 0.7313
+(2062,1454) (2232,1454) (2232,1503) (2062,1503) | festival | 1.0000
+(156,1504) (2224,1504) (2224,1568) (156,1568) | modesti ma tenaci; laboratori gratuiti, spazi per chi vuole provare a creare senza dover chiedere | 0.6426
+(152,1560) (633,1560) (633,1623) (152,1623) | permessi impossibiliv. | 0.6888
+(156,1638) (1224,1638) (1224,1699) (156,1699) | Qualcuno teme i costi, qualcun altro le resistenze. | 0.7778
+(1236,1638) (2309,1638) (2309,1704) (1236,1704) | Allora si prova a comporre un patto: regole chiare | 0.9709
+(190,1693) (833,1693) (833,1756) (190,1756) | poche; responsabilità diffuse; | 0.9965
+(902,1692) (2318,1692) (2318,1754) (902,1754) | calendario pubblico, trasparente, che dica cosa avverrà, quando e | 0.6366
+(150,1749) (1040,1749) (1040,1816) (150,1816) | perché. <Se falliremo;> conclude Andrea; | 0.6687
+(1054,1772) (1080,1772) (1080,1793) (1054,1793) | K | 0.3353
+(1072,1753) (2290,1753) (2290,1813) (1072,1813) | falliremo in avanti: rifaremo; correggeremo; chiederemo | 0.8072
+(154,1813) (1429,1813) (1429,1864) (154,1864) | scusa dove serve; ma non torneremo indietro alla sfiduciav. | 0.5682
+(156,1880) (1364,1880) (1364,1942) (156,1942) | Quando finalmente si chiude lincontro, fuori è già notte. | 0.7741
+(1373,1882) (2168,1882) (2168,1947) (1373,1947) | Le finestre dell'università disegnano | 0.9979
+(153,1941) (2289,1941) (2289,2008) (153,2008) | rettangoli di luce sui platani del viale; un vento tiepido muove le foglie; e pare una carezza. Ognuno | 0.8207
+(155,2003) (581,2003) (581,2047) (155,2047) | torna a casa con un | 0.9851
+(580,1993) (2018,1993) (2018,2059) (580,2059) | promemoria in tasca: non grandi dichiarazioni, ma gesti quotidiani | 0.8730
+(2065,1986) (2238,1986) (2238,2060) (2065,2060) | piccole | 1.0000
+(153,2048) (2213,2048) (2213,2114) (153,2114) | opere che, domani, potranno diventare abitudini giuste. Nell'angolo del foglio; Lucia ha scritto a | 0.6440
+(155,2112) (315,2112) (315,2157) (155,2157) | matita: | 0.9856
+(337,2106) (2301,2106) (2301,2168) (337,2168) | 'Ricordare: à è é ì ò ù; ricordare: ascoltare prima di parlare; ricordare: la città è di tutti, e di | 0.6954
+(154,2166) (810,2166) (810,2220) (154,2220) | ciascuno, nello stesso istante" | 0.8466
+(1640,1149) (1721,1141) (1723,1196) (1643,1203) | più | 0.9997
+(2044,1147) (2128,1137) (2132,1194) (2048,1204) | più | 0.9993
+(1983,1459) (2061,1452) (2063,1503) (1985,1510) | poi | 0.9947
+(834,1705) (898,1702) (899,1743) (834,1747) | un | 0.9135
