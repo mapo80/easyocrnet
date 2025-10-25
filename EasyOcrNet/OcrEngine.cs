@@ -103,7 +103,18 @@ public class OcrEngine : IDisposable
             imageHeight: imageHeight);
 
         // Convert grouped boxes back to DetectionResult with coordinate clamping
-        return ConvertGroupedBoxes(horizontalList, freeList, imageWidth, imageHeight);
+        var convertedBoxes = ConvertGroupedBoxes(horizontalList, freeList, imageWidth, imageHeight);
+
+        // Filter by min_size (matches Python: readtext() min_size filter)
+        // Filter boxes where max(width, height) > minSize
+        if (_config.MinSize > 0)
+        {
+            convertedBoxes = convertedBoxes
+                .Where(det => Math.Max(det.BoundingBox.Width, det.BoundingBox.Height) > _config.MinSize)
+                .ToList();
+        }
+
+        return convertedBoxes;
     }
 
     /// <summary>
