@@ -227,9 +227,6 @@ def run_ocr(image_path: Path, detector_path: str, recognizer_path: str, charset:
 
     orig_h, orig_w = img.shape[:2]
 
-    # Convert to grayscale for recognition (do this BEFORE cropping like torchfree)
-    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
     # Step 1: Detection
     det_input, ratio, size_heatmap = detector_preprocess(img)
     det_output = det_session.run(None, {det_session.get_inputs()[0].name: det_input})[0]
@@ -261,7 +258,9 @@ def run_ocr(image_path: Path, detector_path: str, recognizer_path: str, charset:
         y_min = int(np.clip(y_min, 0, orig_h))
         y_max = int(np.clip(y_max, 0, orig_h))
 
-        crop = img_gray[y_min:y_max, x_min:x_max]
+        # Extract BGR crop, then convert to grayscale (matches torchfree order)
+        crop_bgr = img[y_min:y_max, x_min:x_max]
+        crop = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
         crops.append(crop)
         bbox_coords.append([[x_min, y_min], [x_max, y_min], [x_max, y_max], [x_min, y_max]])
 
@@ -273,7 +272,9 @@ def run_ocr(image_path: Path, detector_path: str, recognizer_path: str, charset:
         y_min = int(np.clip(y_coords.min(), 0, orig_h))
         y_max = int(np.clip(y_coords.max(), 0, orig_h))
 
-        crop = img_gray[y_min:y_max, x_min:x_max]
+        # Extract BGR crop, then convert to grayscale (matches torchfree order)
+        crop_bgr = img[y_min:y_max, x_min:x_max]
+        crop = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
         crops.append(crop)
         bbox_coords.append(free_box)
 
