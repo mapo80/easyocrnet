@@ -74,8 +74,8 @@ def recognizer_preprocess(crop: np.ndarray, img_h: int = 64, img_w: int = None) 
     ratio = w / float(h)
     resized_w = img_w if int(img_h * ratio) > img_w else int(img_h * ratio)
 
-    # Resize with BICUBIC interpolation (matches PIL.Image.BICUBIC)
-    resized = cv2.resize(crop, (resized_w, img_h), interpolation=cv2.INTER_CUBIC)
+    # Resize with LINEAR interpolation (matches torchfree-ocr exactly)
+    resized = cv2.resize(crop, (resized_w, img_h), interpolation=cv2.INTER_LINEAR)
 
     # Normalize: convert to [0,1] then [-1,1]
     resized = resized.astype(np.float32) / 255.0
@@ -187,25 +187,29 @@ def decode_recognition(output: np.ndarray, charset: str, ignore_idx: list = [0])
 
 def load_charset(charset_name: str, charset_dir: str = 'character') -> str:
     """
-    Load character set matching torchfree-ocr for English Gen2 model.
-    The charset is hardcoded to match exactly what torchfree uses.
+    Load character set matching torchfree-ocr.
+    For English Gen2 model, charset is hardcoded.
+    For other languages, load from file.
     """
     # For English, use the exact charset from torchfree config
-    if charset_name == 'latin' or charset_name == 'en':
+    if charset_name == 'en':
         # From recognition_models['gen2']['english_g2']['characters']
         return '0123456789!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ €ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'
-    
-    # For other languages, fall back to file loading
-    charset_path = Path(charset_dir) / f'{charset_name}_char.txt'
+
+    # For other languages, load from file
+    charset_path = Path(charset_dir) / f'{charset_name}_charset.txt'
+    if not charset_path.exists():
+        # Fallback to old naming convention
+        charset_path = Path(charset_dir) / f'{charset_name}_char.txt'
+
     if not charset_path.exists():
         raise FileNotFoundError(f"Charset file not found: {charset_path}")
-    
-    with open(charset_path, 'r', encoding='utf-8-sig') as f:
-        lang_chars = f.read().splitlines()
-    
-    symbols = '0123456789!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~ €'
-    char_set = set(lang_chars).union(set(symbols))
-    return ''.join(char_set)
+
+    with open(charset_path, 'r', encoding='utf-8') as f:
+        # Read all characters (one per line for it_charset.txt)
+        chars = f.read().replace('\n', '')
+
+    return chars
 
 
 def run_ocr(image_path: Path, detector_path: str, recognizer_path: str, charset: str,
@@ -482,8 +486,8 @@ def main():
     }
 
     lang_to_charset = {
-        'en': 'latin',  # English uses full latin charset with symbols
-        'it': 'latin',
+        'en': 'en',  # English uses hardcoded charset
+        'it': 'it',  # Italian uses charset from it_charset.txt (351 chars with accents)
         'fr': 'latin',
         'de': 'latin',
         'es': 'latin',
