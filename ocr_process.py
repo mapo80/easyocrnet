@@ -728,6 +728,18 @@ def get_confidence_color(confidence: float) -> Tuple[int, int, int]:
         return (0, 0, 255)
 
 
+def save_detection_file(image_path: Path, bboxes: list) -> Path:
+    """Save detection bounding boxes to text file."""
+    output_path = image_path.parent / f"{image_path.name}.ocr.python.detect.txt"
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        for bbox in bboxes:
+            bbox_str = " ".join(f"({int(p[0])},{int(p[1])})" for p in bbox)
+            f.write(f"{bbox_str}\n")
+
+    return output_path
+
+
 def save_text_file(image_path: Path, results: list) -> Path:
     """Save OCR results to text file."""
     output_path = image_path.parent / f"{image_path.name}.ocr.python.txt"
@@ -777,7 +789,34 @@ def save_bbox_image(image_path: Path, results: list, draw_text: bool = True, thi
 
 def process_image(image_path: Path, detector_path: str, recognizer_path: str, charset: str, mode: str, **kwargs):
     """Process single image."""
-    # Extract OCR parameters from kwargs
+    # For detection-only mode, skip recognition entirely
+    if mode == 'detect':
+        # Run detection only
+        img = cv2.imread(str(image_path))
+        if img is None:
+            raise ValueError(f"Failed to read image: {image_path}")
+
+        # Load detection model
+        det_session = ort.InferenceSession(detector_path, providers=['CPUExecutionProvider'])
+
+        # Preprocess
+        img_input, ratio, size_heatmap = detector_preprocess(img)
+
+        # Inference
+        det_output = det_session.run(None, {det_session.get_inputs()[0].name: img_input})[0]
+
+        # Postprocess
+        bboxes = detector_postprocess(det_output, ratio)
+
+        outputs = []
+        detect_file = save_detection_file(image_path, bboxes)
+        outputs.append(str(detect_file.name))
+
+        # Return bboxes in a format compatible with results
+        results = [(bbox, "", 1.0) for bbox in bboxes]
+        return results, outputs
+
+    # Full OCR mode
     lang = kwargs.get('lang', 'en')
     enable_spell_check = kwargs.get('enable_spell_check', False)
     results = run_ocr(image_path, detector_path, recognizer_path, charset, lang=lang, enable_spell_check=enable_spell_check)
@@ -800,7 +839,7 @@ def main():
     parser.add_argument("--dataset", type=Path, default=Path("dataset/base"), help="Dataset directory")
     parser.add_argument("--models", type=Path, default=Path("models/cpu"), help="Models directory")
     parser.add_argument("--lang", type=str, default="en", help="Language code")
-    parser.add_argument("--mode", choices=['text', 'visualize', 'all'], default='all', help="Processing mode")
+    parser.add_argument("--mode", choices=['text', 'visualize', 'all', 'detect'], default='all', help="Processing mode: detect=detection only, text=text output, visualize=bbox images, all=both")
     parser.add_argument("--no-text", action="store_true", help="Don't draw text on bbox images")
     parser.add_argument("--thickness", type=int, default=2, help="Bbox line thickness")
     parser.add_argument("--scale", type=float, default=1.0, help="Scale factor for bbox images")
