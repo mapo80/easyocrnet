@@ -1,9 +1,9 @@
 namespace EasyOcrNet.Models;
 
 /// <summary>
-/// Represents a 2D point with integer coordinates
+/// Represents a 2D point with float coordinates (preserves precision for grouping)
 /// </summary>
-public readonly record struct Point2D(int X, int Y)
+public readonly record struct Point2D(float X, float Y)
 {
     public override string ToString() => $"({X},{Y})";
 }
@@ -25,32 +25,32 @@ public record BoundingBox(
     /// <summary>
     /// Get minimum X coordinate
     /// </summary>
-    public int MinX => Math.Min(Math.Min(TopLeft.X, TopRight.X), Math.Min(BottomRight.X, BottomLeft.X));
+    public float MinX => Math.Min(Math.Min(TopLeft.X, TopRight.X), Math.Min(BottomRight.X, BottomLeft.X));
 
     /// <summary>
     /// Get maximum X coordinate
     /// </summary>
-    public int MaxX => Math.Max(Math.Max(TopLeft.X, TopRight.X), Math.Max(BottomRight.X, BottomLeft.X));
+    public float MaxX => Math.Max(Math.Max(TopLeft.X, TopRight.X), Math.Max(BottomRight.X, BottomLeft.X));
 
     /// <summary>
     /// Get minimum Y coordinate
     /// </summary>
-    public int MinY => Math.Min(Math.Min(TopLeft.Y, TopRight.Y), Math.Min(BottomRight.Y, BottomLeft.Y));
+    public float MinY => Math.Min(Math.Min(TopLeft.Y, TopRight.Y), Math.Min(BottomRight.Y, BottomLeft.Y));
 
     /// <summary>
     /// Get maximum Y coordinate
     /// </summary>
-    public int MaxY => Math.Max(Math.Max(TopLeft.Y, TopRight.Y), Math.Max(BottomRight.Y, BottomLeft.Y));
+    public float MaxY => Math.Max(Math.Max(TopLeft.Y, TopRight.Y), Math.Max(BottomRight.Y, BottomLeft.Y));
 
     /// <summary>
     /// Get width of bounding box
     /// </summary>
-    public int Width => MaxX - MinX;
+    public float Width => MaxX - MinX;
 
     /// <summary>
     /// Get height of bounding box
     /// </summary>
-    public int Height => MaxY - MinY;
+    public float Height => MaxY - MinY;
 
     /// <summary>
     /// Format bounding box for output (matches Python format)

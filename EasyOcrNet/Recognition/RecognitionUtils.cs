@@ -18,18 +18,18 @@ public static class RecognitionUtils
     /// <returns>Preprocessed tensor ready for ONNX inference (1, 1, H, W)</returns>
     public static float[,,,] PreprocessCrop(SKBitmap crop, int imgH = 64, int imgW = 200)
     {
-        // 1. Convert to grayscale
-        var grayscale = ConvertToGrayscale(crop);
+        // Calculate resize width maintaining aspect ratio
+        float ratio = crop.Width / (float)crop.Height;
+        int resizedW = (int)(imgH * ratio) > imgW ? imgW : (int)(imgH * ratio);
+
+        // Use SkiaSharp native resize with High quality filter (closest to cv2.INTER_LINEAR)
+        using var resized = crop.Resize(new SKImageInfo(resizedW, imgH), SKFilterQuality.High);
+
+        // Convert resized bitmap to grayscale array
+        var grayscale = ConvertToGrayscale(resized);
 
         int h = grayscale.GetLength(0);
         int w = grayscale.GetLength(1);
-
-        // 2. Calculate resize width maintaining aspect ratio
-        float ratio = w / (float)h;
-        int resizedW = (int)(imgH * ratio) > imgW ? imgW : (int)(imgH * ratio);
-
-        // 3. Resize with bilinear interpolation (matches cv2.INTER_LINEAR)
-        var resized = ResizeBilinear(grayscale, imgH, resizedW);
 
         // 4. Normalize: [0,255] -> [0,1] -> [-1,1]
         var normalized = new float[imgH, resizedW];
@@ -37,7 +37,7 @@ public static class RecognitionUtils
         {
             for (int x = 0; x < resizedW; x++)
             {
-                float val = resized[y, x] / 255.0f;
+                float val = grayscale[y, x] / 255.0f;
                 normalized[y, x] = (val - 0.5f) / 0.5f;
             }
         }
@@ -421,7 +421,8 @@ public static class RecognitionUtils
                 float val = (1 - dy) * ((1 - dx) * src[y0, x0] + dx * src[y0, x1])
                           + dy * ((1 - dx) * src[y1, x0] + dx * src[y1, x1]);
 
-                dst[y, x] = (byte)Math.Clamp(val, 0, 255);
+                // Round instead of truncate to match OpenCV behavior
+                dst[y, x] = (byte)Math.Clamp(Math.Round(val), 0, 255);
             }
         }
 
