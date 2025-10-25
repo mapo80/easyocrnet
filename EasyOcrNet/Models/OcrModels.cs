@@ -102,7 +102,7 @@ public record OcrConfig(
     float SlopeThreshold = 0.1f,
     float YCenterThreshold = 0.5f,
     float HeightThreshold = 0.5f,
-    float WidthThreshold = 1.0f,  // CRITICAL: Python default is 1.0, not 0.5
+    float WidthThreshold = 0.5f,  // Matches Python readtext() default (NOT group_text_box default!)
     float AddMargin = 0.1f,
     float TextThreshold = 0.7f,
     float LinkThreshold = 0.4f,
