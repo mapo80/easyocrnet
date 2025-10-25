@@ -43,9 +43,12 @@ public static class CharsetLoader
         }
 
         // Read all characters (one per line) and concatenate
-        // Remove newlines to create single string (matches Python)
-        var lines = File.ReadAllLines(charsetPath, Encoding.UTF8);
-        return string.Concat(lines);
+        // Match Python: f.read().replace('\n', '')
+        // IMPORTANT: File.ReadAllText() preserves all characters including spaces
+        var content = File.ReadAllText(charsetPath, Encoding.UTF8);
+        var charset = content.Replace("\n", "").Replace("\r", "");
+
+        return charset;
     }
 
     /// <summary>

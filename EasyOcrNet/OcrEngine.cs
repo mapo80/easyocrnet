@@ -6,11 +6,12 @@ using SkiaSharp;
 namespace EasyOcrNet;
 
 /// <summary>
-/// Complete OCR engine that orchestrates detection, grouping, and recognition.
+/// Complete OCR engine that orchestrates detection, grouping, recognition, and post-processing.
 /// Matches Python run_ocr() architecture:
 /// 1. Detection (raw bounding boxes)
 /// 2. Grouping (merge adjacent boxes)
 /// 3. Recognition (extract and recognize text)
+/// 4. Post-processing (fix OCR errors - apostrophes, accents, compound words)
 /// </summary>
 public class OcrEngine : IDisposable
 {
@@ -61,9 +62,18 @@ public class OcrEngine : IDisposable
         foreach (var detection in groupedDetections)
         {
             var recognition = await _recognizer.RecognizeAsync(bitmap, detection);
+
+            // 4. Post-processing (fix OCR errors - apostrophes, accents, compound words)
+            // Apply post-processing for Italian language
+            string processedText = recognition.Text;
+            if (_config.Language.Equals("it", StringComparison.OrdinalIgnoreCase))
+            {
+                processedText = TextPostProcessor.PostProcessItalian(recognition.Text);
+            }
+
             results.Add(new OcrResult(
                 BoundingBox: detection.BoundingBox,
-                Text: recognition.Text,
+                Text: processedText,
                 Confidence: recognition.Confidence));
         }
 
@@ -91,7 +101,8 @@ public class OcrEngine : IDisposable
         }
 
         // Apply grouping with thresholds from config
-        var (horizontalList, freeList) = CraftUtils.GroupTextBoxFlat(
+        // Using NEW GroupTextBox implementation (1:1 Python translation)
+        var (horizontalList, freeList) = GroupTextBox.GroupFlat(
             flatPolys,
             slopeThreshold: _config.SlopeThreshold,
             ycenterThreshold: _config.YCenterThreshold,

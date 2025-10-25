@@ -211,11 +211,12 @@ public class CraftDetector : IDetector
         foreach (var box in boxes)
         {
             // box format: [[x0,y0], [x1,y1], [x2,y2], [x3,y3]]
+            // IMPORTANT: Keep float precision for accurate grouping!
             var boundingBox = new BoundingBox(
-                TopLeft: new Point2D((int)box[0][0], (int)box[0][1]),
-                TopRight: new Point2D((int)box[1][0], (int)box[1][1]),
-                BottomRight: new Point2D((int)box[2][0], (int)box[2][1]),
-                BottomLeft: new Point2D((int)box[3][0], (int)box[3][1])
+                TopLeft: new Point2D(box[0][0], box[0][1]),
+                TopRight: new Point2D(box[1][0], box[1][1]),
+                BottomRight: new Point2D(box[2][0], box[2][1]),
+                BottomLeft: new Point2D(box[3][0], box[3][1])
             );
 
             detections.Add(new DetectionResult(boundingBox, Confidence: 1.0f));

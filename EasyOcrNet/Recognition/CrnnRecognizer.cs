@@ -15,6 +15,7 @@ public class CrnnRecognizer : IRecognizer
     private readonly InferenceSession _session;
     private readonly List<string> _charsetList;
     private readonly OcrConfig _config;
+    private readonly int _imgW;
     private bool _disposed;
 
     /// <summary>
@@ -34,6 +35,10 @@ public class CrnnRecognizer : IRecognizer
         // Load charset
         var charset = CharsetLoader.Load(language, charsetDirectory);
         _charsetList = CharsetLoader.LoadAsListWithBlank(language, charsetDirectory);
+
+        // Use imgW=896 for all models (larger = more details preserved)
+        // Smaller images are handled fine with padding
+        _imgW = 896;
 
         // Configure ONNX Runtime session
         var sessionOptions = new SessionOptions
@@ -70,7 +75,7 @@ public class CrnnRecognizer : IRecognizer
     private RecognitionResult RecognizeCrop(SKBitmap crop)
     {
         // 1. Preprocess crop
-        var input = RecognitionUtils.PreprocessCrop(crop, imgH: 64, imgW: 200);
+        var input = RecognitionUtils.PreprocessCrop(crop, imgH: 64, imgW: _imgW);
 
         // 2. Convert to ONNX tensor
         var tensor = ConvertToTensor(input);
@@ -92,15 +97,15 @@ public class CrnnRecognizer : IRecognizer
     /// </summary>
     private SKBitmap ExtractCrop(SKBitmap bitmap, BoundingBox bbox)
     {
-        // Calculate bounding rectangle
-        int minX = Math.Min(Math.Min(bbox.TopLeft.X, bbox.TopRight.X),
-                            Math.Min(bbox.BottomLeft.X, bbox.BottomRight.X));
-        int maxX = Math.Max(Math.Max(bbox.TopLeft.X, bbox.TopRight.X),
-                            Math.Max(bbox.BottomLeft.X, bbox.BottomRight.X));
-        int minY = Math.Min(Math.Min(bbox.TopLeft.Y, bbox.TopRight.Y),
-                            Math.Min(bbox.BottomLeft.Y, bbox.BottomRight.Y));
-        int maxY = Math.Max(Math.Max(bbox.TopLeft.Y, bbox.TopRight.Y),
-                            Math.Max(bbox.BottomLeft.Y, bbox.BottomRight.Y));
+        // Calculate bounding rectangle (round float coordinates to int pixels)
+        int minX = (int)Math.Round(Math.Min(Math.Min(bbox.TopLeft.X, bbox.TopRight.X),
+                            Math.Min(bbox.BottomLeft.X, bbox.BottomRight.X)));
+        int maxX = (int)Math.Round(Math.Max(Math.Max(bbox.TopLeft.X, bbox.TopRight.X),
+                            Math.Max(bbox.BottomLeft.X, bbox.BottomRight.X)));
+        int minY = (int)Math.Round(Math.Min(Math.Min(bbox.TopLeft.Y, bbox.TopRight.Y),
+                            Math.Min(bbox.BottomLeft.Y, bbox.BottomRight.Y)));
+        int maxY = (int)Math.Round(Math.Max(Math.Max(bbox.TopLeft.Y, bbox.TopRight.Y),
+                            Math.Max(bbox.BottomLeft.Y, bbox.BottomRight.Y)));
 
         // Clamp to image bounds
         minX = Math.Max(0, minX);
@@ -176,16 +181,27 @@ public class CrnnRecognizer : IRecognizer
 
         // Run inference
         using var results = _session.Run(inputs);
-        var outputArray = results.First().AsEnumerable<float>().ToArray();
+        var outputTensor = results.First();
+        var outputArray = outputTensor.AsEnumerable<float>().ToArray();
 
-        // Get output metadata for shape
-        var outputMeta = _session.OutputMetadata[_session.OutputNames[0]];
+        // Get actual shape from ONNX output tensor
+        var tensorInfo = outputTensor.AsTensor<float>();
+        var dimensions = tensorInfo.Dimensions.ToArray();
 
-        // Output shape is typically (batch, time_steps, num_classes)
-        // For our model: (1, 26, num_chars)
-        int batch = 1;
-        int timeSteps = outputArray.Length / _charsetList.Count;
-        int numClasses = _charsetList.Count;
+        // Output shape is (batch, time_steps, num_classes)
+        int batch = dimensions[0];
+        int timeSteps = dimensions[1];
+        int numClasses = dimensions[2];
+
+        // Validation: ensure reshape is valid
+        if (outputArray.Length != batch * timeSteps * numClasses)
+        {
+            throw new InvalidOperationException(
+                $"ONNX output reshape mismatch! " +
+                $"Output length: {outputArray.Length}, " +
+                $"Expected: {batch * timeSteps * numClasses} " +
+                $"(batch={batch} × timeSteps={timeSteps} × numClasses={numClasses})");
+        }
 
         // Reshape to 3D array
         var output = new float[batch, timeSteps, numClasses];
