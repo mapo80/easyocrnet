@@ -659,9 +659,15 @@ public static class CraftUtils
                     }
                     else
                     {
-                        bool mergeCondition =
-                            Math.Abs(lineHeight.Average() - box.height) < heightThreshold * lineHeight.Average() &&
-                            (box.xMin - xMax) < widthThreshold * (box.yMax - box.yMin);
+                        float avgHeight = lineHeight.Average();
+                        float heightDiff = Math.Abs(avgHeight - box.height);
+                        float heightThresh = heightThreshold * avgHeight;
+                        int distance = box.xMin - xMax;
+                        float widthThresh = widthThreshold * (box.yMax - box.yMin);
+
+                        bool heightOk = heightDiff <= heightThresh;  // <= instead of < for edge cases
+                        bool widthOk = distance < widthThresh;
+                        bool mergeCondition = heightOk && widthOk;
 
                         if (mergeCondition)
                         {
