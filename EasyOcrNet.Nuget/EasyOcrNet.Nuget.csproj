@@ -3,23 +3,16 @@
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <PackageId>EasyOcrNet</PackageId>
-    <Version>1.0.1</Version>
+    <Version>1.0.0</Version>
     <Authors>EasyOcrNet</Authors>
     <Description>EasyOcrNet - .NET OCR library with ONNX models. Fast, lightweight optical character recognition for multiple languages without PyTorch dependencies. Includes CRAFT detection and CRNN recognition models.</Description>
     <PackageTags>ocr;onnx;easyocr;text-detection;text-recognition;craft;crnn</PackageTags>
-    <IncludeBuildOutput>true</IncludeBuildOutput>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageOutputPath>../nupkgs</PackageOutputPath>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryUrl>https://github.com/yourusername/easyocrnet</RepositoryUrl>
   </PropertyGroup>
-
-  <ItemGroup>
-    <!-- Reference to main library -->
-    <ProjectReference Include="../EasyOcrNet/EasyOcrNet.csproj">
-      <PrivateAssets>none</PrivateAssets>
-    </ProjectReference>
-  </ItemGroup>
 
   <ItemGroup>
     <!-- ONNX Models - copy to build output -->
@@ -32,7 +25,7 @@
     <!-- Character sets - copy to build output -->
     <None Include="contentFiles/any/any/character/**/*">
       <Pack>true</Pack>
-      <PackagePath>contentFiles/any/any/models;build/character</PackagePath>
+      <PackagePath>contentFiles/any/any/character;build/character</PackagePath>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
 

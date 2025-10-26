@@ -17,7 +17,7 @@
     <PackageReference Include="SkiaSharp.NativeAssets.Linux" Version="3.119.1" />
 
     <!-- Command line parsing -->
-    <PackageReference Include="System.CommandLine" Version="2.0.0-beta4.22272.1" />
+    <PackageReference Include="System.CommandLine" Version="2.0.0-rc.2.25502.107" />
   </ItemGroup>
 
 </Project>
