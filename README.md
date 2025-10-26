@@ -468,6 +468,216 @@ EasyOcrNet.sln                    # Solution Visual Studio
 └── README.md                     # Questo file
 ```
 
+## Pubblicazione Pacchetto NuGet
+
+### Prerequisiti
+
+1. **GitHub CLI installato** (`gh`)
+   ```bash
+   # Verifica installazione
+   gh --version
+   ```
+
+2. **Modelli ONNX scaricati**
+   ```bash
+   python tools/download_torchfree_models.py
+   ```
+
+3. **Git configurato** con accesso al repository
+   ```bash
+   git remote -v  # Verifica remote
+   ```
+
+### Processo di Pubblicazione Completo
+
+#### 1. Preparazione dei Modelli
+
+I modelli devono essere copiati nella struttura del pacchetto NuGet:
+
+```bash
+# Copia modelli ONNX
+cp models/cpu/detection.onnx EasyOcrNet.Nuget/contentFiles/any/any/models/
+cp models/cpu/latin_g2_rec.onnx EasyOcrNet.Nuget/contentFiles/any/any/models/
+cp models/cpu/english_g2_rec.onnx EasyOcrNet.Nuget/contentFiles/any/any/models/
+
+# Copia character files
+cp character/*.txt EasyOcrNet.Nuget/contentFiles/any/any/character/
+```
+
+#### 2. Aggiornamento Versione
+
+Modifica la versione in `EasyOcrNet.Nuget/EasyOcrNet.Nuget.csproj`:
+
+```xml
+<PropertyGroup>
+  <Version>1.0.0</Version>  <!-- Aggiorna questo numero -->
+</PropertyGroup>
+```
+
+#### 3. Build del Pacchetto NuGet
+
+```bash
+cd EasyOcrNet.Nuget
+dotnet pack -c Release
+```
+
+Il pacchetto viene creato in: `nupkgs/EasyOcrNet.{version}.nupkg`
+
+**Dimensione attesa**: ~201 MB (include modelli ONNX duplicati per compatibilità)
+
+#### 4. Verifica del Pacchetto (Opzionale)
+
+```bash
+# Ispeziona contenuto del pacchetto
+unzip -l nupkgs/EasyOcrNet.1.0.0.nupkg | grep -E "build|contentFiles"
+
+# Verifica che contenga:
+# - build/EasyOcrNet.targets
+# - build/models/*.onnx
+# - build/character/*.txt
+# - contentFiles/any/any/models/*.onnx
+# - contentFiles/any/any/character/*.txt
+```
+
+#### 5. Test Locale (Raccomandato)
+
+Testa il pacchetto prima di pubblicarlo:
+
+```bash
+# Pulisci cache NuGet
+dotnet nuget locals all --clear
+
+# Testa con EasyOcrNet.CliNuget
+cd EasyOcrNet.CliNuget
+dotnet restore
+dotnet build -c Release
+
+# Verifica che i modelli siano stati copiati
+ls bin/Release/net9.0/models/
+ls bin/Release/net9.0/character/
+
+# Esegui un test
+cd bin/Release/net9.0
+./EasyOcrNet.CliNuget /path/to/test/images
+```
+
+#### 6. Creazione Release Notes
+
+Crea o aggiorna `RELEASE_NOTES.md` con:
+- Numero versione
+- Novità e modifiche
+- Benchmark e statistiche
+- Known issues
+- Breaking changes (se presenti)
+
+Vedi esempio: [RELEASE_NOTES.md](RELEASE_NOTES.md)
+
+#### 7. Creazione Tag Git
+
+```bash
+# Crea tag annotato
+git tag -a v1.0.0 -m "EasyOcrNet v1.0.0 - Initial Release with NuGet package"
+
+# Push del tag
+git push origin v1.0.0
+```
+
+#### 8. Pubblicazione su GitHub Release
+
+```bash
+# Crea release con GitHub CLI
+gh release create v1.0.0 \
+  --title "EasyOcrNet v1.0.0 - Initial Release" \
+  --notes-file RELEASE_NOTES.md \
+  nupkgs/EasyOcrNet.1.0.0.nupkg
+
+# Output: URL della release
+# https://github.com/mapo80/easyocrnet/releases/tag/v1.0.0
+```
+
+#### 9. Verifica Release
+
+```bash
+# Visualizza dettagli release
+gh release view v1.0.0
+
+# Verifica che l'asset sia presente
+gh release view v1.0.0 --json assets
+```
+
+### Pubblicazione su NuGet.org (Opzionale)
+
+Per pubblicare su NuGet.org pubblico:
+
+```bash
+# 1. Ottieni API key da nuget.org
+# Vai su: https://www.nuget.org/account/apikeys
+
+# 2. Publica il pacchetto
+dotnet nuget push nupkgs/EasyOcrNet.1.0.0.nupkg \
+  --api-key YOUR_API_KEY \
+  --source https://api.nuget.org/v3/index.json
+```
+
+**Nota**: Per NuGet.org considera di:
+- Ridurre dimensioni pacchetto (modelli separati)
+- Aggiungere icona pacchetto
+- Includere README.md nel pacchetto
+- Configurare repository URL
+
+### Installazione da GitHub Release
+
+Gli utenti possono installare il pacchetto dalla release:
+
+```bash
+# 1. Scarica il pacchetto dalla release
+wget https://github.com/mapo80/easyocrnet/releases/download/v1.0.0/EasyOcrNet.1.0.0.nupkg
+
+# 2. Aggiungi sorgente locale
+dotnet nuget add source /path/to/downloaded --name easyocrnet-local
+
+# 3. Installa il pacchetto
+dotnet add package EasyOcrNet --version 1.0.0
+```
+
+### Checklist Pre-Release
+
+- [ ] Modelli ONNX copiati in `EasyOcrNet.Nuget/contentFiles/`
+- [ ] Versione aggiornata in `.csproj`
+- [ ] Pacchetto NuGet buildato con successo
+- [ ] Dimensione pacchetto verificata (~201 MB)
+- [ ] Test locali completati con successo
+- [ ] RELEASE_NOTES.md creato/aggiornato
+- [ ] Tag git creato e pushato
+- [ ] Release GitHub creata con asset
+- [ ] Release verificata e funzionante
+
+### Troubleshooting
+
+**Problema**: Modelli non copiati nell'output
+```bash
+# Soluzione: Verifica che EasyOcrNet.targets sia nel pacchetto
+unzip -l nupkgs/EasyOcrNet.1.0.0.nupkg | grep targets
+
+# Se manca, ricostruisci il pacchetto
+dotnet clean
+dotnet pack -c Release
+```
+
+**Problema**: Pacchetto troppo grande
+```bash
+# Il pacchetto include modelli duplicati (contentFiles + build)
+# Dimensione attesa: ~201 MB
+# Per ridurre, considera di pubblicare modelli separatamente
+```
+
+**Problema**: ProjectReference impedisce uso del pacchetto
+```bash
+# Durante sviluppo, il ProjectReference ha priorità
+# Per testare solo il pacchetto NuGet, rimuovi temporaneamente:
+# <ProjectReference Include="..\EasyOcrNet\EasyOcrNet.csproj" />
+```
+
 ## Contribuire
 
 ### Setup Ambiente di Sviluppo

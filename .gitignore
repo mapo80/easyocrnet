@@ -11,3 +11,9 @@ external/
 TestResults/
 # Bytecode
 __pycache__/
+# NuGet packages
+nupkgs/
+*.nupkg
+EasyOcrNet.Nuget/contentFiles/
+EasyOcrNet.Nuget/bin/
+EasyOcrNet.Nuget/obj/

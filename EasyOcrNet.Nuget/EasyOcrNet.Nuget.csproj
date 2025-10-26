@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <PackageId>EasyOcrNet</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>EasyOcrNet</Authors>
+    <Description>EasyOcrNet - .NET OCR library with ONNX models. Fast, lightweight optical character recognition for multiple languages without PyTorch dependencies. Includes CRAFT detection and CRNN recognition models.</Description>
+    <PackageTags>ocr;onnx;easyocr;text-detection;text-recognition;craft;crnn</PackageTags>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageOutputPath>../nupkgs</PackageOutputPath>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/yourusername/easyocrnet</RepositoryUrl>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- ONNX Models - copy to build output -->
+    <None Include="contentFiles/any/any/models/**/*">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/any/any/models;build/models</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+
+    <!-- Character sets - copy to build output -->
+    <None Include="contentFiles/any/any/character/**/*">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/any/any/character;build/character</PackagePath>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+
+    <!-- Build targets file -->
+    <None Include="EasyOcrNet.targets" Pack="true" PackagePath="build/EasyOcrNet.targets" />
+  </ItemGroup>
+
+</Project>
