@@ -1,3 +1,4 @@
+using System.IO;
 using System.Text;
 
 namespace EasyOcrNet.Utils;
@@ -28,25 +29,13 @@ public static class CharsetLoader
             return EnglishCharset;
         }
 
-        // Try to load from file
-        var charsetPath = Path.Combine(charsetDirectory, $"{language}_charset.txt");
+        var charset = TryLoadFromEmbedded(language);
 
-        if (!File.Exists(charsetPath))
+        if (charset is null)
         {
-            // Fallback to old naming convention
-            charsetPath = Path.Combine(charsetDirectory, $"{language}_char.txt");
+            throw new FileNotFoundException(
+                $"Embedded charset not found for language '{language}'. Ensure the resource is included at build time.");
         }
-
-        if (!File.Exists(charsetPath))
-        {
-            throw new FileNotFoundException($"Charset file not found for language '{language}'", charsetPath);
-        }
-
-        // Read all characters (one per line) and concatenate
-        // Match Python: f.read().replace('\n', '')
-        // IMPORTANT: File.ReadAllText() preserves all characters including spaces
-        var content = File.ReadAllText(charsetPath, Encoding.UTF8);
-        var charset = content.Replace("\n", "").Replace("\r", "");
 
         return charset;
     }
@@ -72,5 +61,33 @@ public static class CharsetLoader
     public static int GetCharCount(string language, string charsetDirectory = "character")
     {
         return Load(language, charsetDirectory).Length + 1; // +1 for blank token
+    }
+
+    private static string? TryLoadFromEmbedded(string language)
+    {
+        var assembly = typeof(CharsetLoader).Assembly;
+        var assemblyName = assembly.GetName().Name ?? "EasyOcrNet";
+        var resourcePrefix = $"{assemblyName}.character.";
+
+        foreach (var suffix in new[] { $"{language}_charset.txt", $"{language}_char.txt" })
+        {
+            var resourceName = resourcePrefix + suffix;
+            using var stream = assembly.GetManifestResourceStream(resourceName);
+            if (stream is null)
+            {
+                continue;
+            }
+
+            using var reader = new StreamReader(stream, Encoding.UTF8, leaveOpen: false);
+            var content = reader.ReadToEnd();
+            return NormalizeCharsetContent(content);
+        }
+
+        return null;
+    }
+
+    private static string NormalizeCharsetContent(string content)
+    {
+        return content.Replace("\n", string.Empty).Replace("\r", string.Empty);
     }
 }

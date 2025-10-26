@@ -1,5 +1,7 @@
 using System.CommandLine;
+using System.IO;
 using System.Text;
+using EasyOcrNet.Assets;
 using EasyOcrNet.Detection;
 using EasyOcrNet.Recognition;
 using EasyOcrNet.Models;
@@ -9,6 +11,15 @@ namespace EasyOcrNet.Cli;
 
 class Program
 {
+    private static string ResolvePath(string path)
+    {
+        if (Path.IsPathRooted(path))
+            return path;
+
+        var baseDirectory = AppContext.BaseDirectory;
+        return Path.GetFullPath(Path.Combine(baseDirectory, path));
+    }
+
     static async Task<int> Main(string[] args)
     {
         var rootCommand = new RootCommand("EasyOcrNet CLI - OCR testing and comparison tool");
@@ -118,6 +129,61 @@ class Program
 
         rootCommand.AddCommand(ocrCommand);
 
+        var downloadCommand = new Command("download", "Scarica i modelli ONNX dalla release GitHub di EasyOcrNet");
+
+        var downloadDirOption = new Option<string>(
+            name: "--dir",
+            description: "Directory di destinazione per i modelli ONNX",
+            getDefaultValue: () => "models/cpu");
+
+        var repositoryOption = new Option<string>(
+            name: "--repo",
+            description: "Repository GitHub che contiene la release",
+            getDefaultValue: () => "mapo80/easyocrnet");
+
+        var releaseTagOption = new Option<string>(
+            name: "--tag",
+            description: "Tag della release da cui scaricare gli asset",
+            getDefaultValue: () => "v2025.09.19");
+
+        downloadCommand.AddOption(downloadDirOption);
+        downloadCommand.AddOption(repositoryOption);
+        downloadCommand.AddOption(releaseTagOption);
+
+        downloadCommand.SetHandler(
+            async (string dir, string repo, string tag) =>
+            {
+                var resolvedDir = ResolvePath(dir);
+
+                Console.WriteLine("EasyOcrNet Asset Downloader");
+                Console.WriteLine("===========================");
+                Console.WriteLine($"Repository: {repo}");
+                Console.WriteLine($"Release tag: {tag}");
+                Console.WriteLine($"Directory destinazione: {resolvedDir}");
+                Console.WriteLine();
+
+                try
+                {
+                    var options = new GithubReleaseOptions(repo, tag);
+                    await OcrReleaseDownloader.EnsureAllModelsAsync(
+                        resolvedDir,
+                        options,
+                        Console.WriteLine);
+
+                    Console.WriteLine();
+                    Console.WriteLine("✓ Download completato. I file charset sono già integrati in EasyOcrNet.");
+                }
+                catch (Exception ex)
+                {
+                    Console.Error.WriteLine($"Errore durante il download: {ex.Message}");
+                }
+            },
+            downloadDirOption,
+            repositoryOption,
+            releaseTagOption);
+
+        rootCommand.AddCommand(downloadCommand);
+
         return await rootCommand.InvokeAsync(args);
     }
 
@@ -132,10 +198,12 @@ class Program
     {
         try
         {
+            var resolvedModelPath = ResolvePath(modelPath);
+
             Console.WriteLine($"EasyOcrNet Detection Test (Phase 2)");
             Console.WriteLine($"==================================");
             Console.WriteLine($"Image: {imagePath}");
-            Console.WriteLine($"Model: {modelPath}");
+            Console.WriteLine($"Model: {resolvedModelPath}");
             Console.WriteLine($"Text threshold: {textThreshold}");
             Console.WriteLine($"Link threshold: {linkThreshold}");
             Console.WriteLine($"Low text: {lowText}");
@@ -148,9 +216,13 @@ class Program
                 return;
             }
 
-            if (!File.Exists(modelPath))
+            await OcrReleaseDownloader.EnsureModelAsync(
+                resolvedModelPath,
+                logger: Console.WriteLine);
+
+            if (!File.Exists(resolvedModelPath))
             {
-                Console.WriteLine($"Error: Model file not found: {modelPath}");
+                Console.WriteLine($"Error: Model file not found: {resolvedModelPath}");
                 return;
             }
 
@@ -174,7 +246,7 @@ class Program
                 LowText: lowText);
 
             Console.WriteLine("Initializing detector...");
-            using var detector = new CraftDetector(modelPath, config);
+            using var detector = new CraftDetector(resolvedModelPath, config);
 
             // Run detection
             Console.WriteLine("Running detection...");
@@ -376,11 +448,14 @@ class Program
     {
         try
         {
+            var resolvedDetectorPath = ResolvePath(detectorPath);
+            var resolvedRecognizerPath = ResolvePath(recognizerPath);
+
             Console.WriteLine($"EasyOcrNet Full OCR Test (Phase 3)");
             Console.WriteLine($"==================================");
             Console.WriteLine($"Image: {imagePath}");
-            Console.WriteLine($"Detector: {detectorPath}");
-            Console.WriteLine($"Recognizer: {recognizerPath}");
+            Console.WriteLine($"Detector: {resolvedDetectorPath}");
+            Console.WriteLine($"Recognizer: {resolvedRecognizerPath}");
             Console.WriteLine($"Language: {language}");
             Console.WriteLine();
 
@@ -391,15 +466,23 @@ class Program
                 return;
             }
 
-            if (!File.Exists(detectorPath))
+            await OcrReleaseDownloader.EnsureModelAsync(
+                resolvedDetectorPath,
+                logger: Console.WriteLine);
+
+            if (!File.Exists(resolvedDetectorPath))
             {
-                Console.WriteLine($"Error: Detector model not found: {detectorPath}");
+                Console.WriteLine($"Error: Detector model not found: {resolvedDetectorPath}");
                 return;
             }
 
-            if (!File.Exists(recognizerPath))
+            await OcrReleaseDownloader.EnsureModelAsync(
+                resolvedRecognizerPath,
+                logger: Console.WriteLine);
+
+            if (!File.Exists(resolvedRecognizerPath))
             {
-                Console.WriteLine($"Error: Recognizer model not found: {recognizerPath}");
+                Console.WriteLine($"Error: Recognizer model not found: {resolvedRecognizerPath}");
                 return;
             }
 
@@ -421,7 +504,7 @@ class Program
 
             // Initialize OCR engine (handles detection + grouping + recognition)
             Console.WriteLine("Initializing OCR engine...");
-            using var ocrEngine = new OcrEngine(detectorPath, recognizerPath, language, config);
+            using var ocrEngine = new OcrEngine(resolvedDetectorPath, resolvedRecognizerPath, language, config);
 
             // Run full OCR pipeline
             Console.WriteLine("Running OCR pipeline (detection -> grouping -> recognition)...");

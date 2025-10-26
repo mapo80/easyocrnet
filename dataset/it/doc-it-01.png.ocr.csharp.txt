@@ -1,16 +1,16 @@
-(53,53) (955,53) (955,119) (53,119) | Prendetevi cura dellalbero: è l'unico | 0,5965
-(52,112) (974,112) (974,190) (52,190) | che; oltre a dare ossigeno; abbellisce la | 0,7644
-(52,174) (984,174) (984,250) (52,250) | città? Perché spendere più soldi per un | 0,7401
-(50,236) (1008,236) (1008,312) (50,312) | pranzo già cucinato? Nell'università qui | 0,7981
-(52,296) (996,296) (996,368) (52,368) | vicino, il sabato 25 ottobre 2025, ci sarà | 0,7134
-(52,358) (1006,358) (1006,434) (52,434) | ilpranzo più salutare; Poiché dobbiamo | 0,7985
-(52,418) (988,418) (988,496) (52,496) | alzarci dall'alba all'imbrunire; un po' di | 0,6281
-(53,477) (925,477) (925,545) (53,545) | caffè e l'ora di dormire ci aiuteranno | 0,9375
-(58,562) (90,562) (90,600) (58,600) | a | 0,9855
-(92,538) (1014,538) (1014,618) (92,618) | recuperare: Là, per 1,95 € chi entrerà, | 0,6866
-(52,602) (970,602) (970,680) (52,680) | nei limiti delle proprie possibilità, farà | 0,8145
-(51,657) (1024,657) (1024,741) (51,741) | volti felici. Giả dall'uscita sapremo com'è | 0,3751
-(53,725) (905,725) (905,793) (53,793) | andata. E un'armoniosa festa. Tanti | 0,7641
-(52,786) (1014,786) (1014,864) (52,864) | bimbil Perfino lì ce nè uno appena nato. | 0,8424
-(51,849) (199,849) (199,913) (51,913) | tiens! | 0,8824
-(53,909) (305,909) (305,973) (53,973) | à è é ìò ù | 0,9724
+(53,53) (955,53) (955,119) (53,119) | [wjsijyj{nJhzwfJijqqfqgjwt9JjJ[zsnht | 0,9417
+(52,112) (974,112) (974,190) (52,190) | hmj:JtqywjJfJifwjJtxxnljst5JfggjqqnxhjJqf | 0,7812
+(52,174) (984,174) (984,250) (52,250) | hnyyf>J[jwhmjJxujsijwjDunzJxtqinJujwJzs | 0,9267
+(50,236) (1008,236) (1008,312) (50,312) | uwfsªtJlnfJhzhnsfyt>JYjqqzsn{jwxnyfJvzn | 0,9978
+(52,296) (996,296) (996,368) (52,368) | {nhnst5JnqJxfgfytJ"%JtyytgwjJ" "%5hnJxfwf | 0,5574
+(52,358) (1006,358) (1006,434) (52,434) | nqJuwfsªtJunzJxfqzyfwj7J[tnhmjJitggnfrt | 0,6468
+(52,418) (988,418) (988,496) (52,496) | fqªfwhnJifqqfqgfJfqqnrgwzsnwj5JzsJut0Jin | 0,8894
+(53,477) (925,477) (925,545) (53,545) | hfkkjJjJBtwfJinJitwrnwjJhnJfnzyjwfsst | 0,6823
+(58,562) (90,562) (90,600) (58,600) | f | 0,9920
+(92,538) (1014,538) (1014,618) (92,618) | wjhzujwfwj:JWf5JujwJ!5)%JK5JhmnJjsywjwf5 | 0,8680
+(52,602) (970,602) (970,680) (52,680) | sjnJqnrnynJijqqjJuwtuwnjJutxxngnqnyf5Jkfwf | 0,9429
+(51,657) (1024,657) (1024,741) (51,741) | {tqynJkjqnhn7JRnfJifqzxhnyfJxfuwjrtJhtrj | 0,6865
+(53,725) (905,725) (905,793) (53,793) | fsifyf9JPJzsfwrtsntxfJkjxyf7J_fsyn | 0,5325
+(52,786) (1014,786) (1014,864) (52,864) | gnrgnqJ[jwknstJqnJhjJsjJzstJfuujsfJsfyt9 | 0,5910
+(51,849) (199,849) (199,913) (51,913) | ynjsx* | 0,9804
+(53,909) (305,909) (305,973) (53,973) | fJjJjJ!J Jz | 0,8362

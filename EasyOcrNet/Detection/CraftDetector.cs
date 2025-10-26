@@ -1,3 +1,4 @@
+using EasyOcrNet.Assets;
 using EasyOcrNet.Models;
 using Microsoft.ML.OnnxRuntime;
 using Microsoft.ML.OnnxRuntime.Tensors;
@@ -22,6 +23,8 @@ public class CraftDetector : IDetector
     /// <param name="config">OCR configuration</param>
     public CraftDetector(string modelPath, OcrConfig config)
     {
+        OcrReleaseDownloader.EnsureModel(modelPath);
+
         if (!File.Exists(modelPath))
             throw new FileNotFoundException($"Detection model not found: {modelPath}");
 

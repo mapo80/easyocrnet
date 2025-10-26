@@ -1,3 +1,4 @@
+using EasyOcrNet.Assets;
 using EasyOcrNet.Models;
 using EasyOcrNet.Utils;
 using Microsoft.ML.OnnxRuntime;
@@ -27,6 +28,8 @@ public class CrnnRecognizer : IRecognizer
     /// <param name="charsetDirectory">Directory containing charset files</param>
     public CrnnRecognizer(string modelPath, string language, OcrConfig config, string charsetDirectory = "character")
     {
+        OcrReleaseDownloader.EnsureModel(modelPath);
+
         if (!File.Exists(modelPath))
             throw new FileNotFoundException($"Recognition model not found: {modelPath}");
 
