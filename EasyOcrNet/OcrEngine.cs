@@ -57,13 +57,16 @@ public class OcrEngine : IDisposable
         // This is where Python does grouping in run_ocr()
         var groupedDetections = GroupDetections(detections, bitmap.Width, bitmap.Height);
 
-        // 3. Recognition (extract crops and recognize text)
-        var results = new List<OcrResult>();
-        foreach (var detection in groupedDetections)
-        {
-            var recognition = await _recognizer.RecognizeAsync(bitmap, detection);
+        // 3. Recognition (extract crops and recognize text) - BATCH OPTIMIZED
+        var recognitions = await _recognizer.RecognizeBatchAsync(bitmap, groupedDetections);
 
-            // 4. Post-processing (fix OCR errors - apostrophes, accents, compound words)
+        // 4. Post-processing (fix OCR errors - apostrophes, accents, compound words)
+        var results = new List<OcrResult>();
+        for (int i = 0; i < groupedDetections.Count; i++)
+        {
+            var detection = groupedDetections[i];
+            var recognition = recognitions[i];
+
             // Apply post-processing for Italian language
             string processedText = recognition.Text;
             if (_config.Language.Equals("it", StringComparison.OrdinalIgnoreCase))

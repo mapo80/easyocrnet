@@ -22,4 +22,12 @@ public interface IRecognizer : IDisposable
     /// <param name="crop">Cropped image region as SKBitmap</param>
     /// <returns>Recognition result with text and confidence</returns>
     Task<RecognitionResult> RecognizeCropAsync(SKBitmap crop);
+
+    /// <summary>
+    /// Recognize text from multiple detected regions in parallel (OPTIMIZED)
+    /// </summary>
+    /// <param name="bitmap">Full image as SKBitmap</param>
+    /// <param name="detections">List of detected regions</param>
+    /// <returns>List of recognition results</returns>
+    Task<List<RecognitionResult>> RecognizeBatchAsync(SKBitmap bitmap, List<DetectionResult> detections);
 }

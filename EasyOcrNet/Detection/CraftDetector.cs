@@ -27,10 +27,13 @@ public class CraftDetector : IDetector
 
         _config = config;
 
-        // Configure ONNX Runtime session
+        // Configure ONNX Runtime session for maximum performance
         var sessionOptions = new SessionOptions
         {
-            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+            ExecutionMode = ExecutionMode.ORT_PARALLEL,
+            InterOpNumThreads = 1,  // Use 1 thread for inter-op (simpler models)
+            IntraOpNumThreads = Environment.ProcessorCount  // Use all cores for matrix ops
         };
 
         _session = new InferenceSession(modelPath, sessionOptions);

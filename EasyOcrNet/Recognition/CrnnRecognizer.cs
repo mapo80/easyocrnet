@@ -40,10 +40,13 @@ public class CrnnRecognizer : IRecognizer
         // Smaller images are handled fine with padding
         _imgW = 896;
 
-        // Configure ONNX Runtime session
+        // Configure ONNX Runtime session for maximum performance
         var sessionOptions = new SessionOptions
         {
-            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL
+            GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
+            ExecutionMode = ExecutionMode.ORT_PARALLEL,
+            InterOpNumThreads = 1,  // Use 1 thread for inter-op (simpler models)
+            IntraOpNumThreads = Environment.ProcessorCount  // Use all cores for matrix ops
         };
 
         _session = new InferenceSession(modelPath, sessionOptions);
@@ -220,6 +223,31 @@ public class CrnnRecognizer : IRecognizer
 
         return output;
     }
+
+    /// <summary>
+    /// Recognize text from multiple detections (sequential with optimized ONNX session)
+    /// </summary>
+    public async Task<List<RecognitionResult>> RecognizeBatchAsync(SKBitmap bitmap, List<DetectionResult> detections)
+    {
+        return await Task.Run(() =>
+        {
+            if (detections == null || detections.Count == 0)
+                return new List<RecognitionResult>();
+
+            var results = new List<RecognitionResult>();
+
+            foreach (var detection in detections)
+            {
+                var crop = ExtractCrop(bitmap, detection.BoundingBox);
+                var result = RecognizeCrop(crop);
+                results.Add(result);
+                crop.Dispose();
+            }
+
+            return results;
+        });
+    }
+
 
     public void Dispose()
     {
